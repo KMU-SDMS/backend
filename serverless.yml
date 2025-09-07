@@ -1,0 +1,35 @@
+service: kmu-sdms-api
+frameworkVersion: '4'
+
+plugins:
+  - serverless-python-requirements
+  - serverless-offline
+
+package:
+  individually: true
+
+provider:
+  name: aws
+  runtime: python3.11
+  region: ap-northeast-2
+  timeout: 25
+  memorySize: 512
+  stage: ${opt:stage, 'dev'}
+  httpApi:
+    cors: true
+  environment:
+    STAGE: ${self:provider.stage}
+    DB_CONNECTION_STRING: ${file(envs/config.${self:provider.stage}.json):development.DB_CONNECTION_STRING}
+
+functions:
+  getRooms:
+    handler: src.handlers.rooms_handler.get_all
+    events:
+      - httpApi:
+          method: get
+          path: /rooms
+
+custom:
+  pythonRequirements:
+    dockerizePip: non-linux # macOS/Windows 환경에서 AWS Lambda(Linux)용으로 패키징하기 위한 필수 설정
+
