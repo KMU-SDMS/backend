@@ -31,5 +31,5 @@ functions:
 
 custom:
   pythonRequirements:
-    dockerizePip: non-linux # macOS/Windows 환경에서 AWS Lambda(Linux)용으로 패키징하기 위한 필수 설정
+    dockerizePip: false
 
