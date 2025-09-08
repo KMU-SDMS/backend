@@ -1,5 +1,5 @@
 service: kmu-sdms-api
-frameworkVersion: '4'
+frameworkVersion: "4"
 
 plugins:
   - serverless-python-requirements
@@ -29,7 +29,13 @@ functions:
           method: get
           path: /rooms
 
+  getNotices:
+    handler: src.handlers.notices_handler.get_all
+    events:
+      - httpApi:
+          method: get
+          path: /notices
+
 custom:
   pythonRequirements:
     dockerizePip: false
-

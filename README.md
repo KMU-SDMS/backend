@@ -5,24 +5,16 @@
 ### 주요 기능
 
 - **호실 및 학생 관리:** 기숙사의 호실, 학생, 관리자 등 핵심 정보를 관리하는 API를 제공합니다.
-
 - **점호 관리:** 근로학생이 모바일/웹을 통해 점호 현황을 기록하고, 관리자가 실시간으로 현황을 파악할 수 있는 기능을 제공합니다.
-
 - **상벌점 관리:** 점호 결과나 기타 사유에 따라 학생에게 상점 및 벌점을 부여하고 이력을 관리합니다.
-
 - **(향후 확장) 택배 관리:** OCR을 활용한 스마트 택배 관리 시스템을 지원합니다.
-
 - **(향후 확장) 문의 및 공지:** 1:1 채팅 문의 및 맞춤형 공지 발송 시스템을 지원합니다.
-
 
 ### 기술 스택
 
 - **언어:** Python 3.11
-    
 - **프레임워크:** Serverless Framework v4
-    
 - **클라우드:** AWS Lambda, API Gateway (HTTP API)
-    
 - **데이터베이스:** PostgreSQL (on Supabase)
 
 ### 설치 및 실행
@@ -34,6 +26,9 @@
 ```
 # Serverless Framework 플러그인 설치
 npm install
+
+#sls 글로벌 적용하려면
+npm install -g
 
 # Python 라이브러리 설치
 pip install -r requirements.txt
@@ -54,7 +49,6 @@ pip install -r requirements.txt
 ```
 
 - `DB_CONNECTION_STRING` 값은 Supabase 프로젝트 대시보드의 `Database` > `Connection string` > `Transaction pooler` URI를 사용합니다.
-
 
 ### 개발 및 테스트
 
