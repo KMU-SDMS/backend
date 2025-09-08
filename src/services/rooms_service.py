@@ -1,5 +1,6 @@
-from src.utils import db_connect
 import logging
+from src.utils.supabase_client import get_supabase_client
+
 
 # 로거 설정
 logger = logging.getLogger()
@@ -8,28 +9,32 @@ logger.setLevel(logging.INFO)
 
 def get_all_rooms():
     """
-    모든 호실 정보를 데이터베이스에서 조회하는 비즈니스 로직을 담당합니다.
+    Supabase 클라이언트를 사용하여 모든 호실 정보를 가져옵니다.
     """
-    conn = None
     try:
-        # DB 연결 요청
-        conn = db_connect.get_db_connection()
-        cur = conn.cursor()
+        supabase = get_supabase_client("core")
+        if not supabase:
+            return None, "Supabase client could not be initialized."
 
-        cur.execute(
-            "SELECT id, room_number, floor, capacity FROM core.rooms ORDER BY floor, room_number"
+        logger.info("Supabase 'rooms' 테이블 조회 시작")
+
+        # v2: 쿼리 시 스키마 지정 (postgrest 경유 방식이 가장 안전)
+        response = (
+            supabase.postgrest.schema("core").from_("rooms").select("*").execute()
+        )
+        rooms_data = response.data
+
+        logger.info(
+            f"✅ Supabase로부터 {len(rooms_data)}개의 호실 정보를 성공적으로 가져왔습니다."
         )
 
-        colnames = [desc[0] for desc in cur.description]
+        for room in rooms_data:
+            if "room_number" in room:
+                room["name"] = room.pop("room_number")
 
-        rooms = []
-        for row in cur.fetchall():
-            room_data = dict(zip(colnames, row))
-            room_data["name"] = room_data.pop("room_number")
-            rooms.append(room_data)
+        return rooms_data, None
 
-        logger.info(f"✅ Retrieved {len(rooms)} rooms from DB")
-        return rooms
-    finally:
-        if conn:
-            conn.close()
+    except Exception as e:
+        logger.error(f"❌ Supabase API 호출 실패: {e}")
+        error_message = getattr(e, "message", str(e))
+        return None, error_message
