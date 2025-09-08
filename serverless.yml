@@ -1,12 +1,26 @@
 service: kmu-sdms-api
-frameworkVersion: '4'
+frameworkVersion: "4"
 
 plugins:
-  - serverless-python-requirements
   - serverless-offline
 
 package:
   individually: true
+  patterns:
+    - "src/**"
+    - "!serverless.yml"
+    - "!node_modules/**"
+    - "!package*.json"
+    - "!README.md"
+    - "!legacy_web_scraper/**"
+    - "!layer/**"
+    - "!envs/**"
+    - "!.git/**"
+    - "!.gitignore"
+    - "!requirements.txt"
+    - "!.vscode/**"
+    - "!__pycache__/**"
+    - "!**/__pycache__/**"
 
 provider:
   name: aws
@@ -19,17 +33,23 @@ provider:
     cors: true
   environment:
     STAGE: ${self:provider.stage}
-    DB_CONNECTION_STRING: ${file(envs/config.${self:provider.stage}.json):development.DB_CONNECTION_STRING}
+    SUPABASE_URL: ${file(envs/config.${self:provider.stage}.json):development.SUPABASE_URL}
+    SUPABASE_API_KEY: ${file(envs/config.${self:provider.stage}.json):development.SUPABASE_API_KEY}
+
+layers:
+  AppDependencies:
+    path: layer
+    name: ${self:provider.stage}-app-dependencies
+    description: "스마트 기숙사 관리 시스템 Python 의존성"
+    compatibleRuntimes:
+      - python3.11
 
 functions:
   getRooms:
     handler: src.handlers.rooms_handler.get_all
+    layers:
+      - { Ref: AppDependenciesLambdaLayer }
     events:
       - httpApi:
           method: get
           path: /rooms
-
-custom:
-  pythonRequirements:
-    dockerizePip: false
-

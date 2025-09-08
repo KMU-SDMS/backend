@@ -14,15 +14,11 @@
 
 - **(향후 확장) 문의 및 공지:** 1:1 채팅 문의 및 맞춤형 공지 발송 시스템을 지원합니다.
 
-
 ### 기술 스택
 
 - **언어:** Python 3.11
-    
 - **프레임워크:** Serverless Framework v4
-    
 - **클라우드:** AWS Lambda, API Gateway (HTTP API)
-    
 - **데이터베이스:** PostgreSQL (on Supabase)
 
 ### 설치 및 실행
@@ -55,6 +51,33 @@ pip install -r requirements.txt
 
 - `DB_CONNECTION_STRING` 값은 Supabase 프로젝트 대시보드의 `Database` > `Connection string` > `Transaction pooler` URI를 사용합니다.
 
+### Lambda Layer 빌드(의존성 패키징)
+
+이 프로젝트는 AWS Lambda Layer에 Python 의존성을 포함해 배포합니다. 레이어는 보통 아래 경우에만 다시 빌드합니다.
+
+- `requirements.txt`가 변경되었을 때
+- Python 런타임/아키텍처를 변경했을 때(예: 3.11→3.12, x86_64↔arm64)
+- 레이어 폴더를 초기화했을 때
+
+#### 빌드 방법
+
+```bash
+# 최초 1회(또는 권한 없을 때)
+chmod +x build_layer.sh
+
+# 레이어 빌드
+./build_layer.sh
+```
+
+빌드가 완료되면 아래로 배포합니다.
+
+```bash
+sls deploy
+```
+
+참고:
+
+- 애플리케이션 코드(`src/**`)만 수정했다면 레이어 재빌드는 필요 없습니다.
 
 ### 개발 및 테스트
 
