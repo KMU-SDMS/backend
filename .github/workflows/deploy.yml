@@ -5,7 +5,7 @@ name: Deploy to AWS Lambda (dev)
 on:
   push:
     branches:
-      - cd-actions # 'dev' 브랜치에 푸시될 때만 실행되도록 바꿔야 함
+      - dev # prod, dev 스테이지로 이후에 나눌 예정
 
 # 실행될 작업(Job)들의 목록
 jobs:
