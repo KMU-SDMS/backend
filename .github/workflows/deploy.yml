@@ -45,7 +45,7 @@ jobs:
       # 5. Serverless Framework 및 npm 의존성 설치
       - name: Install dependencies
         run: |
-          npm install -g serverless
+          npm install -g serverless@3
           npm install
 
       # 6. 환경 변수 파일 생성
