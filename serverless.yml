@@ -33,8 +33,8 @@ provider:
     cors: true
   environment:
     STAGE: ${self:provider.stage}
-    SUPABASE_URL: ${file(envs/config.${self:provider.stage}.json):development.SUPABASE_URL}
-    SUPABASE_API_KEY: ${file(envs/config.${self:provider.stage}.json):development.SUPABASE_API_KEY}
+    SUPABASE_URL: ${file(envs/config.${self:provider.stage}.json):SUPABASE_URL}
+    SUPABASE_API_KEY: ${file(envs/config.${self:provider.stage}.json):SUPABASE_API_KEY}
 
 layers:
   AppDependencies:
@@ -46,6 +46,7 @@ layers:
 
 functions:
   getRooms:
+    name: ${self:provider.stage}-api-getRooms
     handler: src.handlers.rooms_handler.get_all
     layers:
       - { Ref: AppDependenciesLambdaLayer }
@@ -55,6 +56,7 @@ functions:
           path: /rooms
 
   getNotices:
+    name: ${self:provider.stage}-api-getNotices
     handler: src.handlers.notices_handler.get_all
     layers:
       - { Ref: AppDependenciesLambdaLayer }
@@ -64,6 +66,7 @@ functions:
           path: /notices
 
   getNoticeById:
+    name: ${self:provider.stage}-api-getNoticeByID
     handler: src.handlers.notices_handler.get_one
     layers:
       - { Ref: AppDependenciesLambdaLayer }
