@@ -73,4 +73,4 @@ jobs:
 
       # 8. Serverless Framework를 사용하여 AWS에 배포
       - name: Deploy to AWS
-        run: sls deploy --stage dev --verbose
+        run: sls deploy --stage dev
