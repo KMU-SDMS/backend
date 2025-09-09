@@ -1,0 +1,76 @@
+# GitHub Actions 워크플로우의 이름
+name: Deploy to AWS Lambda (dev)
+
+# 워크플로우가 실행될 조건 (트리거)
+on:
+  push:
+    branches:
+      - cd-actions # 'dev' 브랜치에 푸시될 때만 실행되도록 바꿔야 함
+
+# 실행될 작업(Job)들의 목록
+jobs:
+  deploy:
+    # 작업의 이름
+    name: Build and Deploy
+    # 작업이 실행될 가상 환경
+    runs-on: ubuntu-latest
+
+    # 작업의 단계(Step)들
+    steps:
+      # 1. 저장소의 코드를 가상 환경으로 가져오기 (Checkout)
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2. Node.js 환경 설정 (Serverless Framework 설치용)
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      # 3. Python 3.11 환경 설정
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # 4. AWS 자격 증명 설정
+      # GitHub Secrets에 저장된 AWS 키를 사용하여 인증
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-northeast-2
+
+      # 5. Serverless Framework 및 npm 의존성 설치
+      - name: Install dependencies
+        run: |
+          npm install -g serverless
+          npm install
+
+      # 6. 환경 변수 파일 생성
+      # GitHub Secrets를 사용하여 배포에 필요한 config.dev.json 파일을 동적으로 생성
+      - name: Create environment file
+        run: |
+          mkdir -p envs
+          echo '{ "development": { "SUPABASE_URL": "${{ secrets.SUPABASE_URL }}", "SUPABASE_API_KEY": "${{ secrets.SUPABASE_API_KEY }}" } }' > envs/config.dev.json
+
+      # 7. Python Lambda Layer 빌드
+      # 우리가 찾은, Docker 없이 Linux 호환 라이브러리를 설치하는 명령어 실행
+      - name: Build Python Layer
+        run: |
+          python3 -m pip install --upgrade pip
+          mkdir -p layer/python
+          python3 -m pip install \
+            --platform manylinux2014_x86_64 \
+            --target=./layer/python \
+            --implementation cp \
+            --python-version 3.11 \
+            --only-binary=:all: --upgrade \
+            -r requirements.txt
+          # 빌드 검증
+          ls -la layer/python/ | head -5
+
+      # 8. Serverless Framework를 사용하여 AWS에 배포
+      - name: Deploy to AWS
+        run: sls deploy --stage dev --verbose
