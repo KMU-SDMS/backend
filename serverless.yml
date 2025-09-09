@@ -53,3 +53,21 @@ functions:
       - httpApi:
           method: get
           path: /rooms
+
+  getNotices:
+    handler: src.handlers.notices_handler.get_all
+    layers:
+      - { Ref: AppDependenciesLambdaLayer }
+    events:
+      - httpApi:
+          method: get
+          path: /notices
+
+  getNoticeById:
+    handler: src.handlers.notices_handler.get_one
+    layers:
+      - { Ref: AppDependenciesLambdaLayer }
+    events:
+      - httpApi:
+          method: get
+          path: /notices/{id}

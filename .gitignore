@@ -1,6 +1,7 @@
 # 환경 변수 파일
 .env
 envs/
+.cursor/
 
 # 히스토리 파일
 sw_notice_history.json
@@ -55,6 +56,3 @@ layer/
 
 # OS
 .DS_Store
-
-# GitHub
-# .github/
