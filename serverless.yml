@@ -74,3 +74,23 @@ functions:
       - httpApi:
           method: get
           path: /notices/{id}
+
+  getStudents:
+    name: ${self:provider.stage}-api-getStudents
+    handler: src.handlers.students_handler.get_all
+    layers:
+      - { Ref: AppDependenciesLambdaLayer }
+    events:
+      - httpApi:
+          method: get
+          path: /students
+
+  getStudentsByRoom:
+    name: ${self:provider.stage}-api-getStudentsByRoom
+    handler: src.handlers.students_handler.get_by_room
+    layers:
+      - { Ref: AppDependenciesLambdaLayer }
+    events:
+      - httpApi:
+          method: get
+          path: /students/{roomId}
