@@ -94,3 +94,13 @@ functions:
       - httpApi:
           method: get
           path: /students/{roomId}
+
+  createNotice:
+    name: ${self:provider.stage}-api-createNotice
+    handler: src.handlers.notices_handler.create
+    layers:
+      - { Ref: AppDependenciesLambdaLayer }
+    events:
+      - httpApi:
+          method: post
+          path: /notice
