@@ -18,7 +18,6 @@ def get_all_rooms():
 
         logger.info("Supabase 'rooms' 테이블 조회 시작")
 
-        # v2: 쿼리 시 스키마 지정 (postgrest 경유 방식이 가장 안전)
         response = (
             supabase.postgrest.schema("core").from_("rooms").select("*").execute()
         )
@@ -28,11 +27,19 @@ def get_all_rooms():
             f"✅ Supabase로부터 {len(rooms_data)}개의 호실 정보를 성공적으로 가져왔습니다."
         )
 
+        # 프론트엔드 데이터 모델에 맞게 변환 (필요한 필드만)
+        result = []
         for room in rooms_data:
-            if "room_number" in room:
-                room["name"] = room.pop("room_number")
+            result.append(
+                {
+                    "id": room["id"],
+                    "name": room["room_number"],  # room_number → name
+                    "floor": room["floor"],
+                    "capacity": room["capacity"],
+                }
+            )
 
-        return rooms_data, None
+        return result, None
 
     except Exception as e:
         logger.error(f"❌ Supabase API 호출 실패: {e}")
