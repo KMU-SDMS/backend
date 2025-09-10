@@ -57,7 +57,7 @@ functions:
 
   getNotices:
     name: ${self:provider.stage}-api-getNotices
-    handler: src.handlers.notices_handler.get_all
+    handler: src.handlers.notices_handler.get_paginated
     layers:
       - { Ref: AppDependenciesLambdaLayer }
     events:
@@ -73,7 +73,7 @@ functions:
     events:
       - httpApi:
           method: get
-          path: /notices/{id}
+          path: /notice
 
   getStudents:
     name: ${self:provider.stage}-api-getStudents

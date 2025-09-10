@@ -9,30 +9,14 @@ logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 
-def get_all(event, context):
-    """
-    GET /notices API 요청을 처리하는 핸들러
-    """
-    logger.info("✅ Processing get_all notices request")
-
-    notices_data, error = notices_service.get_all_notices()
-
-    if error:
-        return responses.create_error_response(error, 500)
-
-    # DTO를 사용하여 응답 데이터 변환
-    notice_list_dto = NoticeListDTO.from_supabase_data(notices_data)
-    return responses.create_success_response(notice_list_dto.to_dict())
-
-
 def get_one(event, context):
     """
-    GET /notices/{id} API 요청을 처리하는 핸들러
+    GET /notice?id={id} API 요청을 처리하는 핸들러
     """
     logger.info("✅ Processing get_one notice request")
 
-    path_params = event.get("pathParameters") or {}
-    notice_id = path_params.get("id")
+    query_params = event.get("queryStringParameters") or {}
+    notice_id = query_params.get("id")
 
     if not notice_id:
         return responses.create_error_response("Notice ID is required.", 400)
@@ -87,4 +71,39 @@ def create(event, context):
         return responses.create_error_response("Invalid JSON format.", 400)
     except Exception as e:
         logger.error(f"❌ 공지사항 생성 실패: {e}")
+        return responses.create_error_response("Internal server error.", 500)
+
+
+def get_paginated(event, context):
+    """
+    GET /notices?page={page} API 요청을 처리하는 핸들러 (페이지네이션)
+    """
+    logger.info("✅ Processing get_paginated notices request")
+
+    try:
+        # 쿼리 파라미터에서 페이지 번호 추출
+        query_params = event.get("queryStringParameters") or {}
+        page_str = query_params.get("page", "1")
+        
+        # 페이지 번호 검증 및 변환
+        try:
+            page = int(page_str)
+            if page < 1:
+                return responses.create_error_response("Page number must be greater than 0.", 400)
+        except ValueError:
+            return responses.create_error_response("Invalid page number format.", 400)
+
+        # 페이지네이션된 공지사항 조회
+        notices_data, total_count, error = notices_service.get_notices_with_pagination(page=page)
+
+        if error:
+            return responses.create_error_response(error, 500)
+
+        # DTO를 사용하여 응답 데이터 변환 (기존 NoticeListDTO 사용)
+        notice_list_dto = NoticeListDTO.from_supabase_data(notices_data)
+        
+        return responses.create_success_response(notice_list_dto.to_dict())
+
+    except Exception as e:
+        logger.error(f"❌ 페이지네이션 공지사항 조회 실패: {e}")
         return responses.create_error_response("Internal server error.", 500)
