@@ -1,0 +1,75 @@
+---
+description: 새로운 채팅에 한번만 참고해줘
+globs:
+alwaysApply: false
+---
+
+## KMU SDMS Backend - Project Rules (.mdc)
+
+### 목적
+
+이 파일은 Cursor에서 본 프로젝트 작업 시 참고할 핵심 규칙과 컨텍스트를 제공합니다.
+
+### 개요
+
+- 서비스명: kmu-sdms-api
+- 런타임: Python 3.11 (AWS Lambda, HTTP API)
+- 인프라: Serverless Framework v3, AWS Lambda, API Gateway (HTTP API)
+- 데이터 소스: Supabase(PostgreSQL)
+
+### 환경 변수
+
+- 관리 파일: `envs/config.<stage>.json`
+- serverless.yml 참조 키(예: dev 스테이지)
+  - `SUPABASE_URL: ${file(envs/config.${self:provider.stage}.json):development.SUPABASE_URL}`
+  - `SUPABASE_API_KEY: ${file(envs/config.${self:provider.stage}.json):development.SUPABASE_API_KEY}`
+- 예시(`envs/config.dev.json`)
+
+```json
+{
+  "development": {
+    "SUPABASE_URL": "https://<project>.supabase.co",
+    "SUPABASE_API_KEY": "<service_role_or_anon_key>"
+  }
+}
+```
+
+### 의존성
+
+- Python: `requirements.txt` (예: `supabase`)
+- Layer 빌드: (리눅스 타깃)으로 `layer/`에 설치 후 배포
+  - 스크립트: `build_layer.sh`
+  - 기본 타깃: manylinux2014_x86_64, CPython 3.11
+
+### Serverless 설정 핵심
+
+- 패키징 패턴: 소스(`src/**`)만 포함, 불필요 파일 제외
+- 스테이지: `dev` 기본, 리전: `ap-northeast-2`
+- HTTP API + CORS 활성화
+- 레이어 리소스 정의: `layers.AppDependencies` → 함수에서 `{ Ref: AppDependenciesLambdaLayer }`로 참조
+
+### 자주 쓰는 명령어
+
+```bash
+# 레이어 빌드(requirements.txt 변경 시)
+chmod +x build_layer.sh && ./build_layer.sh
+
+# 패키징 / 배포 / 제거
+npx serverless package --stage dev --region ap-northeast-2
+npx serverless deploy  --stage dev --region ap-northeast-2
+npx serverless remove  --stage dev --region ap-northeast-2
+
+# 로컬 실행
+npx serverless offline
+```
+
+### 트러블슈팅
+
+- 변수 해석 오류: `${file(envs/config.${self:provider.stage}.json):development.KEY}`의 KEY 존재 여부 확인
+- 패키징 오류(`No file matches include / exclude patterns`): `package.patterns`에서 필요한 파일이 제외되지 않았는지 확인
+- 바이너리 패키지 이슈(psycopg2 등): 레이어를 리눅스/아키텍처에 맞게 빌드하여 포함
+
+### 스타일/가이드
+
+- 코드: 가독성 우선, 명확한 함수/변수명 사용, 에러 로깅 일관화
+- 응답 포맷: `utils/responses.py`의 헬퍼 사용
