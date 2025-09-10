@@ -35,7 +35,7 @@ def get_all_rooms():
                     "id": room["id"],
                     "name": room["room_number"],  # room_number → name
                     "floor": room["floor"],
-                    "capacity": room["capacity"],
+                    "headcount": room["capacity"],  # capacity -> headcount
                 }
             )
 
