@@ -42,13 +42,7 @@ def get_students(room_id: str | None = None):
             f"✅ Supabase로부터 {len(students_data)}명의 학생 정보를 성공적으로 가져왔습니다."
         )
 
-        # 프론트엔드 명세서에 맞게 키 이름 변경
-        for student in students_data:
-            if "studentNo" in student:
-                student["studentIdNum"] = student.pop("studentNo")
-            if "room_id" in student:
-                student["roomId"] = student.pop("room_id")
-
+        # 원시 데이터를 그대로 반환 (DTO 변환은 핸들러에서 처리)
         return students_data, None
 
     except Exception as e:

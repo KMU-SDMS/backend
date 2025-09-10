@@ -27,19 +27,8 @@ def get_all_rooms():
             f"✅ Supabase로부터 {len(rooms_data)}개의 호실 정보를 성공적으로 가져왔습니다."
         )
 
-        # 프론트엔드 데이터 모델에 맞게 변환 (필요한 필드만)
-        result = []
-        for room in rooms_data:
-            result.append(
-                {
-                    "id": room["id"],
-                    "name": room["room_number"],  # room_number → name
-                    "floor": room["floor"],
-                    "headcount": room["capacity"],  # capacity -> headcount
-                }
-            )
-
-        return result, None
+        # 원시 데이터를 그대로 반환 (DTO 변환은 핸들러에서 처리)
+        return rooms_data, None
 
     except Exception as e:
         logger.error(f"❌ Supabase API 호출 실패: {e}")

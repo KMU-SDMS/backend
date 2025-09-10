@@ -1,6 +1,7 @@
 import logging
 from src.services import students_service
 from src.utils import responses
+from src.dto import StudentListDTO
 
 # 로거 설정
 logger = logging.getLogger()
@@ -13,12 +14,14 @@ def get_all(event, context):
     """
     logger.info("✅ Processing get_all students request")
     # '실무자'에게 room_id 없이 업무 지시
-    students, error = students_service.get_students()
+    students_data, error = students_service.get_students()
 
     if error:
         return responses.create_error_response(error, 500)
 
-    return responses.create_success_response(students)
+    # DTO를 사용하여 응답 데이터 변환
+    student_list_dto = StudentListDTO.from_supabase_data(students_data)
+    return responses.create_success_response(student_list_dto.to_dict())
 
 
 def get_by_room(event, context):
@@ -35,9 +38,11 @@ def get_by_room(event, context):
         return responses.create_error_response("Room ID is required.", 400)
 
     # '실무자'에게 room_id를 포함하여 업무 지시
-    students, error = students_service.get_students(room_id=room_id)
+    students_data, error = students_service.get_students(room_id=room_id)
 
     if error:
         return responses.create_error_response(error, 500)
 
-    return responses.create_success_response(students)
+    # DTO를 사용하여 응답 데이터 변환
+    student_list_dto = StudentListDTO.from_supabase_data(students_data)
+    return responses.create_success_response(student_list_dto.to_dict())
