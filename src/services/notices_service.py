@@ -30,11 +30,7 @@ def get_all_notices():
             f"✅ Supabase로부터 {len(notices_data)}개의 공지사항을 성공적으로 가져왔습니다."
         )
 
-        # 프론트엔드 명세서에 맞게 키 이름 변경
-        for notice in notices_data:
-            if "created_at" in notice:
-                notice["date"] = notice.pop("created_at")
-
+        # 원시 데이터를 그대로 반환 (DTO 변환은 핸들러에서 처리)
         return notices_data, None
 
     except Exception as e:
@@ -69,10 +65,7 @@ def get_notice_by_id(notice_id: str):
         notice = notices_data[0]
         logger.info(f"✅ 공지사항 ID {notice_id}를 성공적으로 가져왔습니다.")
 
-        # 프론트엔드 명세서에 맞게 키 이름 변경
-        if "created_at" in notice:
-            notice["date"] = notice.pop("created_at")
-
+        # 원시 데이터를 그대로 반환 (DTO 변환은 핸들러에서 처리)
         return notice, None
 
     except Exception as e:
@@ -108,10 +101,7 @@ def create_notice(title: str, content: str, is_important: bool = False):
                 f"✅ 공지사항이 성공적으로 생성되었습니다. ID: {created_notice['id']}"
             )
 
-            # 프론트엔드 명세서에 맞게 키 이름 변경
-            if "created_at" in created_notice:
-                created_notice["date"] = created_notice.pop("created_at")
-
+            # 원시 데이터를 그대로 반환 (DTO 변환은 핸들러에서 처리)
             return created_notice, None
         else:
             return None, "Failed to create notice"
