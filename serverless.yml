@@ -104,3 +104,13 @@ functions:
       - httpApi:
           method: post
           path: /notice
+
+  deleteNotice:
+    name: ${self:provider.stage}-api-deleteNotice
+    handler: src.handlers.notices_handler.delete
+    layers:
+      - { Ref: AppDependenciesLambdaLayer }
+    events:
+      - httpApi:
+          method: delete
+          path: /notice
