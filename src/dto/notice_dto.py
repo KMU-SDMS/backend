@@ -74,3 +74,23 @@ class NoticeDeleteRequestDTO(BaseDTO):
         if not isinstance(self.id, int) or self.id <= 0:
             return False, "ID must be a positive integer."
         return True, None
+
+
+@dataclass
+class NoticeUpdateRequestDTO(BaseDTO):
+    """공지사항 수정 요청 DTO"""
+
+    id: int
+    title: str
+    content: str
+    is_important: bool = False
+
+    def validate(self) -> tuple[bool, Optional[str]]:
+        """요청 데이터 검증"""
+        if not isinstance(self.id, int) or self.id <= 0:
+            return False, "ID must be a positive integer."
+        if not self.title or not self.title.strip():
+            return False, "Title is required."
+        if not self.content or not self.content.strip():
+            return False, "Content is required."
+        return True, None

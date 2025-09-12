@@ -6,6 +6,7 @@ from .notice_dto import (
     NoticeListDTO,
     NoticeCreateRequestDTO,
     NoticeDeleteRequestDTO,
+    NoticeUpdateRequestDTO,
 )
 from .student_dto import StudentDTO, StudentListDTO
 
@@ -19,6 +20,7 @@ __all__ = [
     "NoticeListDTO",
     "NoticeCreateRequestDTO",
     "NoticeDeleteRequestDTO",
+    "NoticeUpdateRequestDTO",
     "StudentDTO",
     "StudentListDTO",
 ]
