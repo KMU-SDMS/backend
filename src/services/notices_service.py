@@ -85,13 +85,15 @@ def get_notices_with_pagination(page: int = 1):
     페이지당 10개의 공지사항을 반환합니다.
     """
     PAGE_SIZE = 10
-    
+
     try:
         supabase = get_supabase_client("core")
         if not supabase:
             return None, None, "Supabase client could not be initialized."
 
-        logger.info(f"Supabase 'notice' 테이블 페이지네이션 조회 시작 - 페이지: {page}, 크기: {PAGE_SIZE}")
+        logger.info(
+            f"Supabase 'notice' 테이블 페이지네이션 조회 시작 - 페이지: {page}, 크기: {PAGE_SIZE}"
+        )
 
         # 페이지네이션 계산
         offset = (page - 1) * PAGE_SIZE
@@ -127,3 +129,38 @@ def get_notices_with_pagination(page: int = 1):
         logger.error(f"❌ Supabase API 호출 실패: {e}")
         error_message = getattr(e, "message", str(e))
         return None, None, error_message
+
+
+def delete_notice_by_id(notice_id: int):
+    """
+    Supabase 클라이언트를 사용하여 특정 공지사항을 삭제합니다.
+    """
+    try:
+        supabase = get_supabase_client("core")
+        if not supabase:
+            return None, "Supabase client could not be initialized."
+
+        logger.info(f"Supabase 'notice' 테이블에서 ID {notice_id} 삭제 시작")
+
+        response = (
+            supabase.postgrest.schema("core")
+            .from_("notice")
+            .delete()
+            .eq("id", notice_id)
+            .execute()
+        )
+
+        # 삭제된 데이터가 있는지 확인
+        if not response.data:
+            logger.warning(f"삭제할 공지사항 ID {notice_id}를 찾을 수 없습니다.")
+            return None, "Notice not found"
+
+        logger.info(f"✅ 공지사항 ID {notice_id}가 성공적으로 삭제되었습니다.")
+
+        # 삭제 성공 시 반환되는 데이터는 삭제된 레코드의 리스트
+        return response.data, None
+
+    except Exception as e:
+        logger.error(f"❌ Supabase API 호출 실패: {e}")
+        error_message = getattr(e, "message", str(e))
+        return None, error_message
