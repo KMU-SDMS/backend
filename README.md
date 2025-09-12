@@ -48,6 +48,14 @@ pip install -r requirements.txt
 }
 ```
 
+#### 3. 파이썬 포맷팅 설정
+
+설치된 Black 라이브러리를 `src` 디렉토리에 적용하여 코드 파일을 일관적으로 포맷팅합니다.
+
+```bash
+python -m black src/
+```
+
 ### Lambda Layer 빌드(의존성 패키징)
 
 이 프로젝트는 AWS Lambda Layer에 Python 의존성을 포함해 배포합니다. 레이어는 보통 아래 경우에만 다시 빌드합니다.
