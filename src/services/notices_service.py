@@ -164,3 +164,44 @@ def delete_notice_by_id(notice_id: int):
         logger.error(f"❌ Supabase API 호출 실패: {e}")
         error_message = getattr(e, "message", str(e))
         return None, error_message
+
+
+def update_notice_by_id(
+    notice_id: int, title: str, content: str, is_important: bool = False
+):
+    """
+    Supabase 클라이언트를 사용하여 특정 공지사항을 수정합니다.
+    """
+    try:
+        supabase = get_supabase_client("core")
+        if not supabase:
+            return None, "Supabase client could not be initialized."
+
+        logger.info(f"Supabase 'notice' 테이블에서 ID {notice_id} 수정 시작")
+
+        # 수정할 데이터 준비
+        update_data = {"title": title, "content": content, "is_important": is_important}
+
+        response = (
+            supabase.postgrest.schema("core")
+            .from_("notice")
+            .update(update_data)
+            .eq("id", notice_id)
+            .execute()
+        )
+
+        # 수정된 데이터가 있는지 확인
+        if not response.data:
+            logger.warning(f"수정할 공지사항 ID {notice_id}를 찾을 수 없습니다.")
+            return None, "Notice not found"
+
+        updated_notice = response.data[0]
+        logger.info(f"✅ 공지사항 ID {notice_id}가 성공적으로 수정되었습니다.")
+
+        # 원시 데이터를 그대로 반환 (DTO 변환은 핸들러에서 처리)
+        return updated_notice, None
+
+    except Exception as e:
+        logger.error(f"❌ Supabase API 호출 실패: {e}")
+        error_message = getattr(e, "message", str(e))
+        return None, error_message

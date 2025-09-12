@@ -114,3 +114,13 @@ functions:
       - httpApi:
           method: delete
           path: /notice
+
+  updateNotice:
+    name: ${self:provider.stage}-api-updateNotice
+    handler: src.handlers.notices_handler.update
+    layers:
+      - { Ref: AppDependenciesLambdaLayer }
+    events:
+      - httpApi:
+          method: put
+          path: /notice
