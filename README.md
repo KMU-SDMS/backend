@@ -17,7 +17,7 @@
 ### 기술 스택
 
 - **언어:** Python 3.11
-- **프레임워크:** Serverless Framework v4
+- **프레임워크:** Serverless Framework v3
 - **클라우드:** AWS Lambda, API Gateway (HTTP API)
 - **데이터베이스:** PostgreSQL (on Supabase)
 
@@ -43,13 +43,10 @@ pip install -r requirements.txt
 
 ```
 {
-  "development": {
-    "DB_CONNECTION_STRING": "YOUR_DB_URI_ON_SUPABASE"
-  }
+  "SUPABASE_URL": "YOUR_SUPABASE_PROJECT_URL",
+  "SUPABASE_API_KEY": "YOUR_SUPABASE_PROJECT_service_role"
 }
 ```
-
-- `DB_CONNECTION_STRING` 값은 Supabase 프로젝트 대시보드의 `Database` > `Connection string` > `Transaction pooler` URI를 사용합니다.
 
 ### Lambda Layer 빌드(의존성 패키징)
 
@@ -99,11 +96,20 @@ sls offline
 
 ```
 src/
+├── dto/              # API 데이터 구조(요청/응답) 정의
+│   └── base_dto.py
+│   └── notice_dto.py
+│   └── room_dto.py
+│   └── student_dto.py
 ├── handlers/         # API Gateway 요청을 직접 받는 '팀장' 역할의 파일들
 │   └── rooms_handler.py
+│   └── notices_handler.py
+│   └── students_handler.py
 ├── services/         # 실제 비즈니스 로직 및 DB 쿼리를 담당하는 '실무자' 역할의 파일들
 │   └── rooms_service.py
+│   └── notices_service.py
+│   └── students_service.py
 └── utils/            # DB 연결, 응답 생성 등 공통으로 사용되는 '전문가' 역할의 파일들
-    ├── db_connect.py
+    ├── supabase_client.py
     └── responses.py
 ```
