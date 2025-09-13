@@ -8,6 +8,7 @@ from src.dto import (
     NoticeCreateRequestDTO,
     NoticeDeleteRequestDTO,
     NoticeUpdateRequestDTO,
+    NoticeListWithPageInfoDTO,
 )
 
 # 로거 설정
@@ -100,17 +101,21 @@ def get_paginated(event, context):
             return responses.create_error_response("Invalid page number format.", 400)
 
         # 페이지네이션된 공지사항 조회
-        notices_data, total_count, error = notices_service.get_notices_with_pagination(
-            page=page
+        notices_data, total_count, page_size, error = (
+            notices_service.get_notices_with_pagination(page=page)
         )
 
         if error:
             return responses.create_error_response(error, 500)
 
-        # DTO를 사용하여 응답 데이터 변환 (기존 NoticeListDTO 사용)
-        notice_list_dto = NoticeListDTO.from_supabase_data(notices_data)
+        # DTO를 사용하여 응답 데이터 변환 (페이지 정보 포함)
+        notice_list_with_page_info_dto = NoticeListWithPageInfoDTO.from_supabase_data(
+            notices_data, total_count, page, page_size
+        )
 
-        return responses.create_success_response(notice_list_dto.to_dict())
+        return responses.create_success_response(
+            notice_list_with_page_info_dto.to_dict()
+        )
 
     except Exception as e:
         logger.error(f"❌ 페이지네이션 공지사항 조회 실패: {e}")
