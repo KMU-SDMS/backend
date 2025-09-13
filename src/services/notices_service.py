@@ -83,13 +83,16 @@ def get_notices_with_pagination(page: int = 1):
     """
     Supabase 클라이언트를 사용하여 페이지네이션된 공지사항을 가져옵니다.
     페이지당 10개의 공지사항을 반환합니다.
+
+    Returns:
+        tuple: (notices_data, total_count, page_size, error)
     """
     PAGE_SIZE = 10
 
     try:
         supabase = get_supabase_client("core")
         if not supabase:
-            return None, None, "Supabase client could not be initialized."
+            return None, None, None, "Supabase client could not be initialized."
 
         logger.info(
             f"Supabase 'notice' 테이블 페이지네이션 조회 시작 - 페이지: {page}, 크기: {PAGE_SIZE}"
@@ -98,37 +101,29 @@ def get_notices_with_pagination(page: int = 1):
         # 페이지네이션 계산
         offset = (page - 1) * PAGE_SIZE
 
-        # 전체 개수 조회
-        count_response = (
-            supabase.postgrest.schema("core")
-            .from_("notice")
-            .select("id", count="exact")
-            .execute()
-        )
-        total_count = count_response.count if count_response.count is not None else 0
-
-        # 페이지네이션된 데이터 조회
+        # 단일 쿼리로 데이터와 전체 개수를 함께 조회 (성능 최적화)
         response = (
             supabase.postgrest.schema("core")
             .from_("notice")
-            .select("id, title, content, created_at, is_important")
+            .select("id, title, content, created_at, is_important", count="exact")
             .order("created_at", desc=True)
             .range(offset, offset + PAGE_SIZE - 1)
             .execute()
         )
 
         notices_data = response.data
+        total_count = response.count if response.count is not None else 0
         logger.info(
             f"✅ Supabase로부터 페이지 {page}의 {len(notices_data)}개 공지사항을 성공적으로 가져왔습니다. (전체: {total_count}개)"
         )
 
-        # 원시 데이터를 그대로 반환 (DTO 변환은 핸들러에서 처리)
-        return notices_data, total_count, None
+        # 원시 데이터와 페이지 크기 정보를 반환 (DTO 변환은 핸들러에서 처리)
+        return notices_data, total_count, PAGE_SIZE, None
 
     except Exception as e:
         logger.error(f"❌ Supabase API 호출 실패: {e}")
         error_message = getattr(e, "message", str(e))
-        return None, None, error_message
+        return None, None, None, error_message
 
 
 def delete_notice_by_id(notice_id: int):

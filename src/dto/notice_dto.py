@@ -47,6 +47,15 @@ class NoticeDTO(BaseDTO):
 
 
 @dataclass
+class PageInfoDTO(BaseDTO):
+    """페이지 정보 DTO"""
+
+    total_page: int
+    total_notice: int
+    now_page: int
+
+
+@dataclass
 class NoticeListDTO(BaseDTO):
     """공지사항 목록 응답 DTO"""
 
@@ -61,6 +70,35 @@ class NoticeListDTO(BaseDTO):
         """Supabase 데이터 리스트에서 NoticeListDTO 생성"""
         notices = [NoticeDTO.from_supabase_data(data) for data in data_list]
         return cls(notices=notices)
+
+
+@dataclass
+class NoticeListWithPageInfoDTO(NoticeListDTO):
+    """페이지 정보가 포함된 공지사항 목록 응답 DTO (NoticeListDTO 상속)"""
+
+    page_info: PageInfoDTO
+
+    def to_dict(self) -> dict:
+        """페이지 정보가 포함된 공지사항 목록을 딕셔너리로 변환"""
+        return {"notices": super().to_dict(), "page_info": self.page_info.to_dict()}
+
+    @classmethod
+    def from_supabase_data(
+        cls, data_list: list[dict], total_count: int, current_page: int, page_size: int
+    ) -> "NoticeListWithPageInfoDTO":
+        """Supabase 데이터와 페이지 정보에서 NoticeListWithPageInfoDTO 생성"""
+        notices = [NoticeDTO.from_supabase_data(data) for data in data_list]
+
+        # 페이지 정보 계산
+        total_pages = (total_count + page_size - 1) // page_size  # 올림 계산
+
+        page_info = PageInfoDTO(
+            total_page=total_pages,
+            total_notice=total_count,
+            now_page=current_page,
+        )
+
+        return cls(notices=notices, page_info=page_info)
 
 
 @dataclass
