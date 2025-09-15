@@ -12,7 +12,6 @@ class RoomDTO(BaseDTO):
     """호실 응답 DTO"""
 
     id: int
-    name: str
     floor: int
     headcount: int
 
@@ -20,8 +19,7 @@ class RoomDTO(BaseDTO):
     def from_supabase_data(cls, data: dict) -> "RoomDTO":
         """Supabase 데이터에서 RoomDTO 생성"""
         return cls(
-            id=data["id"],
-            name=data["room_number"],  # room_number → name 변환
+            id=data["room_number"],
             floor=data["floor"],
             headcount=data["capacity"],  # capacity → headcount 변환
         )
