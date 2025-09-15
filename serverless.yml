@@ -92,23 +92,13 @@ functions:
 
   getStudents:
     name: ${self:provider.stage}-api-getStudents
-    handler: src.handlers.students_handler.get_all
+    handler: src.handlers.students_handler.get_students
     layers:
       - { Ref: AppDependenciesLambdaLayer }
     events:
       - httpApi:
           method: get
           path: /students
-
-  getStudentsByRoom:
-    name: ${self:provider.stage}-api-getStudentsByRoom
-    handler: src.handlers.students_handler.get_by_room
-    layers:
-      - { Ref: AppDependenciesLambdaLayer }
-    events:
-      - httpApi:
-          method: get
-          path: /students/{roomNumber}
 
   createNotice:
     name: ${self:provider.stage}-api-createNotice

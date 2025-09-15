@@ -45,9 +45,18 @@ paths:
   /students:
     get:
       summary: 학생 목록 조회
-      description: 전체 학생 목록을 조회합니다.
+      description: 전체 또는 특정 호실의 학생 목록을 조회합니다.
       tags:
         - Students
+      parameters:
+        - name: roomNumber
+          in: query
+          description: 호실 번호 (기본값 101, 없으면 전체 조회)
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+          example: 101
       responses:
         "200":
           description: 성공적으로 학생 목록을 반환했습니다.
@@ -57,38 +66,8 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/Student"
-        "500":
-          description: 서버 내부 오류
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-
-  /students/{roomId}:
-    get:
-      summary: 특정 호실 학생 목록 조회
-      description: 특정 호실에 거주하는 학생들의 목록을 조회합니다.
-      tags:
-        - Students
-      parameters:
-        - name: roomId
-          in: path
-          description: 조회할 호실의 ID
-          required: true
-          schema:
-            type: integer
-          example: 1
-      responses:
-        "200":
-          description: 성공적으로 해당 호실의 학생 목록을 반환했습니다.
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/Student"
         "400":
-          description: 잘못된 요청 (잘못된 roomId 형식)
+          description: 잘못된 요청 (잘못된 roomNumber 형식)
           content:
             application/json:
               schema:
@@ -353,10 +332,10 @@ components:
           type: string
           description: 전공
           example: "컴퓨터공학부"
-        roomId:
-          type: string
+        roomNumber:
+          type: integer
           description: 호실 ID
-          example: "101"
+          example: 101
 
     Notice:
       type: object
