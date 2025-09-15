@@ -7,6 +7,7 @@ on:
     branches:
       - dev
       - prod
+      - feat/sls-upgrade
 
 # 실행될 작업(Job)들의 목록
 jobs:
