@@ -261,17 +261,32 @@ paths:
       description: 특정 공지사항을 삭제합니다.
       tags:
         - Notices
-      parameters:
-        - name: id
-          in: query
-          description: 삭제할 공지사항의 ID
-          required: true
-          schema:
-            type: integer
-          example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: integer
+                  description: 삭제할 공지사항의 ID
+                  example: 23
+              required:
+                - id
+            example:
+              id: 23
       responses:
         "200":
           description: 공지사항이 성공적으로 삭제되었습니다.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Notice deleted successfully"
         "400":
           description: 잘못된 요청 (ID 형식 오류)
           content:
