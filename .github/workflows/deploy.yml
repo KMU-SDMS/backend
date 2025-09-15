@@ -19,6 +19,7 @@ jobs:
     # 환경변수 설정
     env:
       STAGE: ${{ github.ref_name == 'prod' && 'prod' || 'dev' }}
+      SERVERLESS_ACCESS_KEY: ${{ secrets.SERVERLESS_ACCESS_KEY }}
 
     # 작업의 단계(Step)들
     steps:
