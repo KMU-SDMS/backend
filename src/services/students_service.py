@@ -6,10 +6,10 @@ logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 
-def get_students(room_id: str | None = None):
+def get_students(room_number: int | None = None):
     """
     Supabase 클라이언트를 사용하여 학생 정보를 조회합니다.
-    room_id가 주어지면 해당 방의 학생만 필터링합니다.
+    room_number가 주어지면 해당 방의 학생만 필터링합니다.
     """
     try:
         supabase = get_supabase_client("core")
@@ -18,13 +18,13 @@ def get_students(room_id: str | None = None):
 
         logger.info("Supabase 'students' 테이블 조회 시작")
 
-        # room_id가 있으면 필터링, 없으면 전체 조회
-        if room_id:
+        # room_number가 있으면 필터링, 없으면 전체 조회
+        if room_number:
             response = (
                 supabase.postgrest.schema("core")
                 .from_("students")
-                .select("room_id, name, studentNo")
-                .eq("room_id", room_id)
+                .select("id, name, studentNo, affiliation, major, room_number")
+                .eq("room_number", room_number)
                 .order("name")
                 .execute()
             )
@@ -32,7 +32,7 @@ def get_students(room_id: str | None = None):
             response = (
                 supabase.postgrest.schema("core")
                 .from_("students")
-                .select("id, name, studentNo, affiliation, major, room_id")
+                .select("id, name, studentNo, affiliation, major, room_number")
                 .order("name")
                 .execute()
             )

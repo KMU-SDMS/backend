@@ -16,7 +16,7 @@ class StudentDTO(BaseDTO):
     studentIdNum: str = ""  # studentNo → studentIdNum 변환
     affiliation: Optional[str] = None
     major: Optional[str] = None
-    roomId: Optional[str] = None  # room_id → roomId 변환
+    roomNumber: Optional[str] = None  # room_nuber → roomNumber 변환
 
     @classmethod
     def from_supabase_data(cls, data: dict) -> "StudentDTO":
@@ -27,7 +27,7 @@ class StudentDTO(BaseDTO):
             studentIdNum=data["studentNo"],  # studentNo → studentIdNum 변환
             affiliation=data.get("affiliation"),
             major=data.get("major"),
-            roomId=data.get("room_id"),  # room_id → roomId 변환
+            roomNumber=data.get("room_number"),  # room_number → rooomNumber 변환
         )
 
 
