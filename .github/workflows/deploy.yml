@@ -7,6 +7,7 @@ on:
     branches:
       - dev
       - prod
+  workflow_dispatch: {} # ← 수동 실행 버튼
 
 # 실행될 작업(Job)들의 목록
 jobs:
@@ -15,6 +16,8 @@ jobs:
     name: Build and Deploy to ${{ github.ref_name }}
     # 작업이 실행될 가상 환경
     runs-on: ubuntu-latest
+    # 수동 실행 때도 혹시 다른 브랜치를 선택 못 하게 안전장치 (선택)
+    if: ${{ github.ref_name == 'dev' || github.ref_name == 'prod' }}
     # 환경변수 설정
     env:
       STAGE: ${{ github.ref_name == 'prod' && 'prod' || 'dev' }}
