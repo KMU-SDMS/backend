@@ -15,7 +15,7 @@ servers:
     description: Production server
     variables:
       apiId:
-        default: 12y69ifvh1
+        default: 3a8ds5zj5k
       # stage:
       #   default: dev
 
