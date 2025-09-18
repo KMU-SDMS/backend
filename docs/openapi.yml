@@ -15,7 +15,7 @@ servers:
     description: Production server
     variables:
       apiId:
-        default: 3a8ds5zj5k
+        default: ${env:API_GATEWAY_ID}
       # stage:
       #   default: dev
 

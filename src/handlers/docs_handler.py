@@ -1,4 +1,5 @@
 from pathlib import Path
+import os
 
 # 프로젝트 루트 기준 docs/openapi.yml 경로
 SPEC_PATH = Path(__file__).resolve().parents[2] / "docs" / "openapi.yml"
@@ -38,8 +39,14 @@ def serve_swagger_ui(event, context):
 
 
 def serve_openapi(event, context):
+    # 환경변수에서 API Gateway ID 가져오기
+    api_gateway_id = os.environ.get("API_GATEWAY_ID")
+
+    # OpenAPI 스펙에서 환경변수 치환
+    spec_text = SPEC_TEXT.replace("${env:API_GATEWAY_ID}", api_gateway_id)
+
     return {
         "statusCode": 200,
         "headers": {"Content-Type": "application/yml; charset=utf-8"},
-        "body": SPEC_TEXT,
+        "body": spec_text,
     }

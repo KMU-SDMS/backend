@@ -36,6 +36,7 @@ provider:
     STAGE: ${self:provider.stage}
     SUPABASE_URL: ${file(envs/config.${self:provider.stage}.json):SUPABASE_URL}
     SUPABASE_API_KEY: ${file(envs/config.${self:provider.stage}.json):SUPABASE_API_KEY}
+    API_GATEWAY_ID: ${file(envs/config.${self:provider.stage}.json):API_GATEWAY_ID}
 
 layers:
   AppDependencies:
