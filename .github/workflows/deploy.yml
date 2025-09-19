@@ -18,7 +18,7 @@ jobs:
     # 작업이 실행될 가상 환경
     runs-on: ubuntu-latest
     # 수동 실행 때도 혹시 다른 브랜치를 선택 못 하게 안전장치 (선택)
-    if: ${{ github.ref_name == 'dev' || github.ref_name == 'prod' }}
+    if: ${{ github.ref_name == 'dev' || github.ref_name == 'prod' || github.ref_name == 'feat/calendar_api' }}
     # 환경변수 설정
     env:
       STAGE: ${{ github.ref_name == 'prod' && 'prod' || 'dev' }}
