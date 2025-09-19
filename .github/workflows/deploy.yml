@@ -7,6 +7,7 @@ on:
     branches:
       - dev
       - prod
+      - feat/calendar_api
   workflow_dispatch: {} # ← 수동 실행 버튼
 
 # 실행될 작업(Job)들의 목록
