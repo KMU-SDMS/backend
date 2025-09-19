@@ -285,6 +285,159 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
+  /calendar:
+    get:
+      summary: 캘린더 일정 조회
+      description: 전체 또는 특정 날짜의 캘린더 일정을 조회합니다.
+      tags:
+        - Calendar
+      parameters:
+        - name: date
+          in: query
+          description: 조회할 날짜 (YYYY-MM-DD 형식, 선택사항)
+          required: false
+          schema:
+            type: string
+            format: date
+          example: "2025-09-19"
+      responses:
+        "200":
+          description: 성공적으로 캘린더 일정을 반환했습니다.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CalendarList"
+        "400":
+          description: 잘못된 요청 (잘못된 날짜 형식)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: 서버 내부 오류
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+    post:
+      summary: 새 캘린더 일정 생성
+      description: 새로운 캘린더 일정을 생성합니다.
+      tags:
+        - Calendar
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CalendarCreateRequest"
+            example:
+              date: "2025-09-19"
+              rollCallType: null
+              paymentType: null
+      responses:
+        "201":
+          description: 캘린더 일정이 성공적으로 생성되었습니다.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Calendar"
+        "400":
+          description: 잘못된 요청 (필수 필드 누락 또는 형식 오류)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: 서버 내부 오류
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+    put:
+      summary: 기존 캘린더 일정 수정
+      description: 기존 캘린더 일정의 내용을 수정합니다.
+      tags:
+        - Calendar
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CalendarUpdateRequest"
+            example:
+              id: 1
+              paymentType: "cash"
+      responses:
+        "200":
+          description: 캘린더 일정이 성공적으로 수정되었습니다.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Calendar"
+        "400":
+          description: 잘못된 요청 (ID 형식 오류 또는 필수 필드 누락)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: 수정할 캘린더 일정을 찾을 수 없음
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: 서버 내부 오류
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+    delete:
+      summary: 캘린더 일정 삭제
+      description: 특정 캘린더 일정을 삭제합니다.
+      tags:
+        - Calendar
+      parameters:
+        - name: id
+          in: query
+          description: 삭제할 캘린더 일정의 ID
+          required: true
+          schema:
+            type: integer
+          example: 1
+      responses:
+        "200":
+          description: 캘린더 일정이 성공적으로 삭제되었습니다.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Calendar event deleted successfully"
+        "400":
+          description: 잘못된 요청 (ID 형식 오류)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: 삭제할 캘린더 일정을 찾을 수 없음
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: 서버 내부 오류
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
 components:
   schemas:
     Room:
@@ -384,6 +537,83 @@ components:
           default: false
           example: true
 
+    Calendar:
+      type: object
+      description: 캘린더 일정 정보
+      properties:
+        id:
+          type: integer
+          description: 일정 ID
+          example: 1
+        date:
+          type: string
+          format: date
+          description: 일정 날짜 (YYYY-MM-DD 형식)
+          example: "2025-09-19"
+        rollCallType:
+          type: string
+          description: 점호 타입
+          example: "night"
+        paymentType:
+          type: string
+          description: 결제 타입
+          example: "card"
+
+    CalendarList:
+      type: object
+      description: 캘린더 일정 목록
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Calendar"
+
+    CalendarCreateRequest:
+      type: object
+      description: 캘린더 일정 생성 요청
+      required:
+        - date
+        - rollCallType
+        - paymentType
+      properties:
+        date:
+          type: string
+          format: date
+          description: 일정 날짜 (YYYY-MM-DD 형식)
+          example: "2025-09-19"
+        rollCallType:
+          type: string
+          description: 점호 타입
+          example: "night"
+        paymentType:
+          type: string
+          description: 결제 타입
+          example: "card"
+
+    CalendarUpdateRequest:
+      type: object
+      description: 캘린더 일정 수정 요청
+      required:
+        - id
+      properties:
+        id:
+          type: integer
+          description: 수정할 일정 ID
+          example: 1
+        date:
+          type: string
+          format: date
+          description: 일정 날짜 (YYYY-MM-DD 형식, 선택사항)
+          example: "2025-09-19"
+        rollCallType:
+          type: string
+          description: 점호 타입 (선택사항)
+          example: "night"
+        paymentType:
+          type: string
+          description: 결제 타입 (선택사항)
+          example: "cash"
+
     Error:
       type: object
       description: 에러 응답
@@ -400,3 +630,5 @@ tags:
     description: 학생 관련 API
   - name: Notices
     description: 공지사항 관련 API
+  - name: Calendar
+    description: 캘린더 일정 관련 API

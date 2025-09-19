@@ -130,3 +130,43 @@ functions:
       - httpApi:
           method: put
           path: /notice
+
+  getCalendar:
+    name: ${self:provider.stage}-api-getCalendar
+    handler: src.handlers.calendar_handler.get_all
+    layers:
+      - { Ref: AppDependenciesLambdaLayer }
+    events:
+      - httpApi:
+          method: get
+          path: /calendar
+
+  createCalendar:
+    name: ${self:provider.stage}-api-createCalendar
+    handler: src.handlers.calendar_handler.create
+    layers:
+      - { Ref: AppDependenciesLambdaLayer }
+    events:
+      - httpApi:
+          method: post
+          path: /calendar
+
+  updateCalendar:
+    name: ${self:provider.stage}-api-updateCalendar
+    handler: src.handlers.calendar_handler.update
+    layers:
+      - { Ref: AppDependenciesLambdaLayer }
+    events:
+      - httpApi:
+          method: put
+          path: /calendar
+
+  deleteCalendar:
+    name: ${self:provider.stage}-api-deleteCalendar
+    handler: src.handlers.calendar_handler.delete
+    layers:
+      - { Ref: AppDependenciesLambdaLayer }
+    events:
+      - httpApi:
+          method: delete
+          path: /calendar
