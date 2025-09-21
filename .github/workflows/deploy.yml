@@ -61,14 +61,14 @@ jobs:
         if: env.STAGE == 'dev'
         run: |
           mkdir -p envs
-          echo '{ "SUPABASE_URL": "${{ secrets.SUPABASE_URL }}", "SUPABASE_API_KEY": "${{ secrets.SUPABASE_API_KEY }}", "API_GATEWAY_ID": "${{ secrets.API_GATEWAY_ID }}" }' > envs/config.dev.json
+          echo '{ "SUPABASE_URL": "${{ secrets.SUPABASE_URL }}", "SUPABASE_API_KEY": "${{ secrets.SUPABASE_API_KEY }}", "API_GATEWAY_ID": "${{ secrets.API_GATEWAY_ID }}", "BILL_BUCKET_NAME": "${{ secrets.BILL_BUCKET_NAME }}" }' > envs/config.dev.json
 
       # 6-2. prod 환경 설정 파일 생성 (이후 실제 PROD DB 연결이 필요함)
       - name: Create PROD environment file
         if: env.STAGE == 'prod'
         run: |
           mkdir -p envs
-          echo '{ "SUPABASE_URL": "${{ secrets.PROD_SUPABASE_URL }}", "SUPABASE_API_KEY": "${{ secrets.PROD_SUPABASE_API_KEY }}", "API_GATEWAY_ID": "${{ secrets.PROD_API_GATEWAY_ID }}" }' > envs/config.prod.json
+          echo '{ "SUPABASE_URL": "${{ secrets.PROD_SUPABASE_URL }}", "SUPABASE_API_KEY": "${{ secrets.PROD_SUPABASE_API_KEY }}", "API_GATEWAY_ID": "${{ secrets.PROD_API_GATEWAY_ID }}", "BILL_BUCKET_NAME": "${{ secrets.PROD_BILL_BUCKET_NAME }}" }' > envs/config.prod.json
 
       # 7. Python Lambda Layer 빌드
       # 우리가 찾은, Docker 없이 Linux 호환 라이브러리를 설치하는 명령어 실행
