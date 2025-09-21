@@ -1,2 +1,3 @@
 supabase
 black
+boto3
