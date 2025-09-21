@@ -26,4 +26,3 @@ python3 -m pip install \
 
 # 3. 성공 메시지를 출력합니다.
 echo "✅ Layer build complete. You are now ready to deploy!"
-```

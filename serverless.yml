@@ -37,6 +37,7 @@ provider:
     SUPABASE_URL: ${file(envs/config.${self:provider.stage}.json):SUPABASE_URL}
     SUPABASE_API_KEY: ${file(envs/config.${self:provider.stage}.json):SUPABASE_API_KEY}
     API_GATEWAY_ID: ${file(envs/config.${self:provider.stage}.json):API_GATEWAY_ID}
+    BILL_BUCKET_NAME: ${file(envs/config.${self:provider.stage}.json):BILL_BUCKET_NAME}
 
 layers:
   AppDependencies:
@@ -170,3 +171,23 @@ functions:
       - httpApi:
           method: delete
           path: /calendar
+
+  billPresign:
+    name: ${self:provider.stage}-api-billPresign
+    handler: src.handlers.bill_handler.presign
+    layers:
+      - { Ref: AppDependenciesLambdaLayer }
+    events:
+      - httpApi:
+          method: post
+          path: /bill/presign
+
+  billGetImage:
+    name: ${self:provider.stage}-api-billGetImage
+    handler: src.handlers.bill_handler.get_image
+    layers:
+      - { Ref: AppDependenciesLambdaLayer }
+    events:
+      - httpApi:
+          method: get
+          path: /bill/image
