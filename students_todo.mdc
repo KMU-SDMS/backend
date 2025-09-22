@@ -1,0 +1,165 @@
+## Rule Name: students_todo
+
+### Description:
+
+- students API 확장을 위한 단계별 투두리스트
+- 기존 API 유지하면서 개별 학생 조회/생성/수정/삭제 API 추가
+- 실제 students 테이블 스키마: studentNo(varchar, PK), name(varchar), room_number(int8, nullable), check_in_date(date), created_at(timestamptz)
+
+### 📋 TODO List
+
+#### 1. DTO 확장 (src/dto/student_dto.py)
+
+- [x] **StudentCreateRequestDTO 클래스 추가**
+
+  - 필드: name:str, studentIdNum:str, roomNumber:int|None, checkInDate:str|None
+  - 요청 데이터 검증용 DTO
+
+- [x] **StudentUpdateRequestDTO 클래스 추가**
+
+  - 필드: studentIdNum:str, name:str|None, roomNumber:int|None, checkInDate:str|None
+  - 수정 요청 데이터 검증용 DTO
+
+- [x] **DTO 패키지 등록 (src/dto/**init**.py)**
+  - import 추가: StudentCreateRequestDTO, StudentUpdateRequestDTO
+  - **all** 리스트에 추가
+
+#### 2. 서비스 확장 (src/services/students_service.py)
+
+- [x] **get_student_by_student_no(student_no: str) 함수 추가**
+
+  - Supabase에서 studentNo로 단일 학생 조회
+  - select: "studentNo, name, room_number, check_in_date, created_at"
+  - .eq("studentNo", student_no)
+  - return (data[0] if data else None, None)
+
+- [x] **create_student(name, student_no, room_number=None, check_in_date=None) 함수 추가**
+
+  - Supabase에 새 학생 데이터 삽입
+  - insert({ name, studentNo: student_no, room_number, check_in_date })
+  - .select()로 생성된 행 반환
+
+- [x] **update_student(student_no: str, fields: dict) 함수 추가**
+
+  - 허용 키 필터링: {"name", "room_number", "check_in_date"}
+  - .eq("studentNo", student_no).select()
+  - 업데이트 행 없으면 "Not found" 에러
+
+- [x] **delete_student_by_student_no(student_no: str) 함수 추가**
+  - .eq("studentNo", student_no).select()
+  - 삭제 행 없으면 "Not found" 에러
+
+#### 3. 핸들러 확장 (src/handlers/students_handler.py)
+
+- [x] **get_by_student_no(event, context) 함수 추가**
+
+  - 쿼리 파라미터: studentNo (필수)
+  - students_service.get_student_by_student_no() 호출
+  - StudentDTO.from_supabase_data()로 변환
+  - create_success_response()로 응답
+
+- [x] **create(event, context) 함수 추가**
+
+  - body 파싱: name, studentIdNum (필수), roomNumber, checkInDate (선택)
+  - students_service.create_student() 호출
+  - StudentDTO.from_supabase_data()로 변환
+  - create_success_response()로 응답
+
+- [x] **update(event, context) 함수 추가**
+
+  - body 파싱: studentIdNum (필수), 나머지 선택
+  - students_service.update_student() 호출
+  - StudentDTO.from_supabase_data()로 변환
+  - create_success_response()로 응답
+
+- [x] **delete(event, context) 함수 추가**
+  - 쿼리 파라미터: studentIdNum (필수)
+  - students_service.delete_student_by_student_no() 호출
+  - {"message": "Student deleted successfully"} 응답
+
+#### 4. 서버리스 설정 (serverless.yml)
+
+- [x] **getStudent 함수 추가**
+
+  - handler: src/handlers/students_handler.get_by_student_no
+  - events: httpApi { path: /student, method: get }
+
+- [x] **createStudent 함수 추가**
+
+  - handler: src/handlers/students_handler.create
+  - events: httpApi { path: /student, method: post }
+
+- [x] **updateStudent 함수 추가**
+
+  - handler: src/handlers/students_handler.update
+  - events: httpApi { path: /student, method: put }
+
+- [x] **deleteStudent 함수 추가**
+  - handler: src/handlers/students_handler.delete
+  - events: httpApi { path: /student, method: delete }
+
+#### 5. OpenAPI 문서 (docs/openapi.yml)
+
+- [x] **StudentCreateRequest 스키마 추가**
+
+  - name: string (required)
+  - studentIdNum: string (required)
+  - roomNumber: integer (optional)
+  - checkInDate: string (optional, format: date)
+
+- [x] **StudentUpdateRequest 스키마 추가**
+
+  - studentIdNum: string (required)
+  - name: string (optional)
+  - roomNumber: integer (optional)
+  - checkInDate: string (optional, format: date)
+
+- [x] **GET /student 경로 추가**
+
+  - parameters: studentNo (query, string, required)
+  - responses: 200 (Student), 404 (Not Found)
+
+- [x] **POST /student 경로 추가**
+
+  - requestBody: StudentCreateRequest
+  - responses: 201 (Student), 400 (Bad Request)
+
+- [x] **PUT /student 경로 추가**
+
+  - requestBody: StudentUpdateRequest
+  - responses: 200 (Student), 400 (Bad Request), 404 (Not Found)
+
+- [x] **DELETE /student 경로 추가**
+  - parameters: studentIdNum (query, string, required)
+  - responses: 200 (message), 404 (Not Found)
+
+#### 6. 테스트 및 검증
+
+- [x] **기존 API 테스트**
+
+  - GET /students (전체 조회)
+  - GET /students?roomNumber=101 (호실별 조회)
+
+- [x] **신규 API 테스트**
+
+  - GET /student?studentNo=20243105 (특정 학생 조회)
+  - POST /student (학생 생성)
+  - PUT /student (학생 수정)
+  - DELETE /student?studentIdNum=20243105 (학생 삭제)
+
+- [x] **에러 케이스 테스트**
+  - 400: 필수 필드 누락, 잘못된 데이터 형식
+  - 404: 존재하지 않는 studentNo로 조회/수정/삭제
+
+### 🎯 우선순위
+
+1. **High Priority**: DTO 확장 → 서비스 확장 → 핸들러 확장
+2. **Medium Priority**: 서버리스 설정 → OpenAPI 문서
+3. **Low Priority**: 테스트 및 검증
+
+### 📝 참고사항
+
+- 기존 코드와의 호환성 유지 필수
+- studentNo (DB) ↔ studentIdNum (API) 필드명 변환 주의
+- 모든 서비스 함수는 (data, error) 튜플 반환 패턴 준수
+- 핸들러는 얇게, 서비스에서 로직/에러 로깅 상세히
