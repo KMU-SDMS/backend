@@ -102,6 +102,46 @@ functions:
           method: get
           path: /students
 
+  getStudent:
+    name: ${self:provider.stage}-api-getStudent
+    handler: src.handlers.students_handler.get_by_student_no
+    layers:
+      - { Ref: AppDependenciesLambdaLayer }
+    events:
+      - httpApi:
+          method: get
+          path: /student
+
+  createStudent:
+    name: ${self:provider.stage}-api-createStudent
+    handler: src.handlers.students_handler.create
+    layers:
+      - { Ref: AppDependenciesLambdaLayer }
+    events:
+      - httpApi:
+          method: post
+          path: /student
+
+  updateStudent:
+    name: ${self:provider.stage}-api-updateStudent
+    handler: src.handlers.students_handler.update
+    layers:
+      - { Ref: AppDependenciesLambdaLayer }
+    events:
+      - httpApi:
+          method: put
+          path: /student
+
+  deleteStudent:
+    name: ${self:provider.stage}-api-deleteStudent
+    handler: src.handlers.students_handler.delete
+    layers:
+      - { Ref: AppDependenciesLambdaLayer }
+    events:
+      - httpApi:
+          method: delete
+          path: /student
+
   createNotice:
     name: ${self:provider.stage}-api-createNotice
     handler: src.handlers.notices_handler.create
