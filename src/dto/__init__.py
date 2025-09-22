@@ -9,7 +9,12 @@ from .notice_dto import (
     NoticeUpdateRequestDTO,
     NoticeListWithPageInfoDTO,
 )
-from .student_dto import StudentDTO, StudentListDTO
+from .student_dto import (
+    StudentDTO,
+    StudentListDTO,
+    StudentCreateRequestDTO,
+    StudentUpdateRequestDTO,
+)
 from .calendar_dto import (
     CalendarDTO,
     CalendarListDTO,
@@ -31,6 +36,8 @@ __all__ = [
     "NoticeListWithPageInfoDTO",
     "StudentDTO",
     "StudentListDTO",
+    "StudentCreateRequestDTO",
+    "StudentUpdateRequestDTO",
     "CalendarDTO",
     "CalendarListDTO",
     "CalendarCreateRequestDTO",
