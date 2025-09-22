@@ -28,6 +28,26 @@ class StudentDTO(BaseDTO):
 
 
 @dataclass
+class StudentCreateRequestDTO(BaseDTO):
+    """학생 생성 요청 DTO"""
+
+    name: str
+    studentIdNum: str
+    roomNumber: Optional[int] = None
+    checkInDate: Optional[str] = None
+
+
+@dataclass
+class StudentUpdateRequestDTO(BaseDTO):
+    """학생 수정 요청 DTO"""
+
+    studentIdNum: str
+    name: Optional[str] = None
+    roomNumber: Optional[int] = None
+    checkInDate: Optional[str] = None
+
+
+@dataclass
 class StudentListDTO(BaseDTO):
     """학생 목록 응답 DTO"""
 
