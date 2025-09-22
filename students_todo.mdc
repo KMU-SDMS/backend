@@ -53,7 +53,7 @@
 
 - [x] **get_by_student_no(event, context) 함수 추가**
 
-  - 쿼리 파라미터: studentNo (필수)
+  - 쿼리 파라미터: studentIdNum (필수)
   - students_service.get_student_by_student_no() 호출
   - StudentDTO.from_supabase_data()로 변환
   - create_success_response()로 응답
@@ -116,7 +116,7 @@
 
 - [x] **GET /student 경로 추가**
 
-  - parameters: studentNo (query, string, required)
+  - parameters: studentIdNum (query, string, required)
   - responses: 200 (Student), 404 (Not Found)
 
 - [x] **POST /student 경로 추가**
@@ -142,7 +142,7 @@
 
 - [x] **신규 API 테스트**
 
-  - GET /student?studentNo=20243105 (특정 학생 조회)
+  - GET /student?studentIdNum=20243105 (특정 학생 조회)
   - POST /student (학생 생성)
   - PUT /student (학생 수정)
   - DELETE /student?studentIdNum=20243105 (학생 삭제)

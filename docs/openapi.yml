@@ -86,7 +86,7 @@ paths:
       tags:
         - Students
       parameters:
-        - name: studentNo
+        - name: studentIdNum
           in: query
           description: 조회할 학생의 학번
           required: true
@@ -101,7 +101,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/Student"
         "400":
-          description: 잘못된 요청 (studentNo 파라미터 누락)
+          description: 잘못된 요청 (studentIdNum 파라미터 누락)
           content:
             application/json:
               schema:

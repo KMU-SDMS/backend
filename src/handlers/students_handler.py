@@ -48,16 +48,18 @@ def get_students(event, context):
 def get_by_student_no(event, context):
     """
     GET /student API 요청을 처리하는 핸들러
-    - 쿼리 파라미터: studentNo (필수)
+    - 쿼리 파라미터: studentIdNum (필수)
     - 특정 학생 번호로 학생 조회
     """
     logger.info("✅ Processing get student by student number request")
 
     query_params = event.get("queryStringParameters") or {}
-    student_no = query_params.get("studentNo")
+    student_no = query_params.get("studentIdNum")
 
     if not student_no:
-        return responses.create_error_response("studentNo parameter is required.", 400)
+        return responses.create_error_response(
+            "studentIdNum parameter is required.", 400
+        )
 
     # 서비스 호출
     result, error = students_service.get_student_by_student_no(student_no)
