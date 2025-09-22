@@ -79,6 +79,167 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
+  /student:
+    get:
+      summary: 특정 학생 조회
+      description: 학생 번호를 통해 특정 학생의 상세 정보를 조회합니다.
+      tags:
+        - Students
+      parameters:
+        - name: studentNo
+          in: query
+          description: 조회할 학생의 학번
+          required: true
+          schema:
+            type: string
+          example: "20243105"
+      responses:
+        "200":
+          description: 성공적으로 학생 정보를 반환했습니다.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Student"
+        "400":
+          description: 잘못된 요청 (studentNo 파라미터 누락)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: 학생을 찾을 수 없음
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: 서버 내부 오류
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+    post:
+      summary: 새 학생 생성
+      description: 새로운 학생을 생성합니다.
+      tags:
+        - Students
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StudentCreateRequest"
+            example:
+              name: "이현구"
+              studentIdNum: "20243105"
+              roomNumber: 101
+              checkInDate: "2024-02-26"
+      responses:
+        "201":
+          description: 학생이 성공적으로 생성되었습니다.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Student"
+        "400":
+          description: 잘못된 요청 (필수 필드 누락 또는 형식 오류)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: 서버 내부 오류
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+    put:
+      summary: 기존 학생 정보 수정
+      description: 기존 학생의 정보를 수정합니다.
+      tags:
+        - Students
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StudentUpdateRequest"
+            example:
+              studentIdNum: "20243105"
+              name: "이현구"
+              roomNumber: 101
+              checkInDate: "2024-02-27"
+      responses:
+        "200":
+          description: 학생 정보가 성공적으로 수정되었습니다.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Student"
+        "400":
+          description: 잘못된 요청 (필수 필드 누락 또는 형식 오류)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: 수정할 학생을 찾을 수 없음
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: 서버 내부 오류
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+    delete:
+      summary: 학생 삭제
+      description: 특정 학생을 삭제합니다.
+      tags:
+        - Students
+      parameters:
+        - name: studentIdNum
+          in: query
+          description: 삭제할 학생의 학번
+          required: true
+          schema:
+            type: string
+          example: "20243105"
+      responses:
+        "200":
+          description: 학생이 성공적으로 삭제되었습니다.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Student deleted successfully"
+        "400":
+          description: 잘못된 요청 (studentIdNum 파라미터 누락)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: 삭제할 학생을 찾을 수 없음
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: 서버 내부 오류
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
   /notices:
     get:
       summary: 공지사항 목록 조회 (페이지네이션)
@@ -487,8 +648,67 @@ components:
           example: "컴퓨터공학부"
         roomNumber:
           type: integer
-          description: 호실 ID
+          description: 호실 번호
           example: 101
+        checkInDate:
+          type: string
+          format: date
+          description: 입사 날짜 (YYYY-MM-DD 형식)
+          example: "2024-09-01"
+        createdAt:
+          type: string
+          format: date-time
+          description: 생성일시
+          example: "2024-09-01T10:00:00Z"
+
+    StudentCreateRequest:
+      type: object
+      description: 학생 생성 요청
+      required:
+        - name
+        - studentIdNum
+      properties:
+        name:
+          type: string
+          description: 학생명
+          example: "이현구"
+        studentIdNum:
+          type: string
+          description: 학번
+          example: "20243105"
+        roomNumber:
+          type: integer
+          description: 호실 번호 (선택사항)
+          example: 101
+        checkInDate:
+          type: string
+          format: date
+          description: 입사 날짜 (YYYY-MM-DD 형식, 선택사항)
+          example: "2024-02-26"
+
+    StudentUpdateRequest:
+      type: object
+      description: 학생 수정 요청
+      required:
+        - studentIdNum
+      properties:
+        studentIdNum:
+          type: string
+          description: 학번
+          example: "20243105"
+        name:
+          type: string
+          description: 학생명 (선택사항)
+          example: "이현구"
+        roomNumber:
+          type: integer
+          description: 호실 번호 (선택사항)
+          example: 101
+        checkInDate:
+          type: string
+          format: date
+          description: 입사 날짜 (YYYY-MM-DD 형식, 선택사항)
+          example: "2024-02-27"
 
     Notice:
       type: object
