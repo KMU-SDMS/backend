@@ -11,23 +11,19 @@ from .base_dto import BaseDTO
 class StudentDTO(BaseDTO):
     """학생 응답 DTO"""
 
-    id: Optional[int] = None
     name: str = ""
     studentIdNum: str = ""  # studentNo → studentIdNum 변환
-    affiliation: Optional[str] = None
-    major: Optional[str] = None
-    roomNumber: Optional[str] = None  # room_nuber → roomNumber 변환
+    roomNumber: Optional[int] = None  # room_number → roomNumber 변환
+    checkInDate: Optional[str] = None  # check_in_date → checkInDate 변환
 
     @classmethod
     def from_supabase_data(cls, data: dict) -> "StudentDTO":
         """Supabase 데이터에서 StudentDTO 생성"""
         return cls(
-            id=data.get("id"),
             name=data["name"],
             studentIdNum=data["studentNo"],  # studentNo → studentIdNum 변환
-            affiliation=data.get("affiliation"),
-            major=data.get("major"),
-            roomNumber=data.get("room_number"),  # room_number → rooomNumber 변환
+            roomNumber=data.get("room_number"),  # room_number → roomNumber 변환
+            checkInDate=data.get("check_in_date"),  # check_in_date → checkInDate 변환
         )
 
 

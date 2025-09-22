@@ -23,7 +23,7 @@ def get_students(room_number: int | None = None):
             response = (
                 supabase.postgrest.schema("core")
                 .from_("students")
-                .select("id, name, studentNo, affiliation, major, room_number")
+                .select("studentNo, name, room_number, check_in_date")
                 .eq("room_number", room_number)
                 .order("name")
                 .execute()
@@ -32,7 +32,7 @@ def get_students(room_number: int | None = None):
             response = (
                 supabase.postgrest.schema("core")
                 .from_("students")
-                .select("id, name, studentNo, affiliation, major, room_number")
+                .select("studentNo, name, room_number, check_in_date")
                 .order("name")
                 .execute()
             )
