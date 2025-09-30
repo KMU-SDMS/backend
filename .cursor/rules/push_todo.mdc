@@ -1,0 +1,223 @@
+## Rule Name: push_todo
+
+### Description:
+
+- PWA 알림 서비스 API 개발을 위한 단계별 투두리스트
+- Firebase Cloud Messaging(FCM) 기반 푸시 알림 시스템 구축
+- 기존 DB 스키마 활용: notify.subscriptions, notify.notice_logs
+- 공지사항 등록 시 모든 활성 구독자에게 자동 알림 발송
+
+### 📋 TODO List
+
+#### 1. DTO 정의 (src/dto/notification_dto.py)
+
+- [x] **SubscriptionDTO 클래스 추가**
+
+  - 필드: id:int, fcm_token:str, student_no:str, is_active:bool, platform:str, created_at:str, updated_at:str
+  - from_supabase_data() 정적 메서드
+  - Supabase 응답 데이터를 DTO로 변환
+
+- [x] **SubscriptionCreateRequestDTO 클래스 추가**
+
+  - 필드: fcm_token:str, student_no:str, platform:str
+  - validate() 메서드로 데이터 검증
+  - 요청 데이터 검증용 DTO
+
+- [x] **NotificationLogDTO 클래스 추가**
+
+  - 필드: id:int, notice_id:int, subscription_id:int, status:str, error_message:str|None, sent_at:str
+  - from_supabase_data() 정적 메서드
+  - 발송 결과 로깅용 DTO
+
+- [x] **DTO 패키지 등록 (src/dto/**init**.py)**
+  - import 추가: SubscriptionDTO, SubscriptionCreateRequestDTO, NotificationLogDTO
+  - **all** 리스트에 추가
+
+#### 2. FCM 클라이언트 (src/utils/fcm_client.py)
+
+- [x] **HTTP v1 API 기반 FCM 클라이언트 구현**
+
+  - FCM HTTP v1 API 사용 (OAuth 2.0 + 서비스 계정 JSON)
+  - send_notification() 함수: 단일 토큰 발송
+  - send_multicast_notification() 함수: 다중 토큰 발송
+  - 무효 토큰 자동 감지 및 분류
+
+- [x] **OAuth 2.0 인증 구현**
+
+  - 서비스 계정 JSON으로 액세스 토큰 발급
+  - 토큰 갱신 로직 (만료 시 자동 재발급)
+  - Google OAuth 2.0 API 호출
+
+- [x] **무효 토큰 감지 로직**
+
+  - HTTP v1 API 응답 에러 코드 기반 감지
+  - INVALID_ARGUMENT, UNREGISTERED, SENDER_ID_MISMATCH 등
+  - 반환값: (success_count, failure_count, failed_tokens, invalid_tokens)
+
+- [x] **에러 처리 및 로깅**
+  - FCM HTTP v1 API 에러 분류 및 로깅
+  - OAuth 2.0 인증 에러 처리
+  - 재시도 로직 (선택사항)
+  - 할당량 초과 처리
+
+#### 3. 구독 관리 서비스 (src/services/subscriptions_service.py)
+
+- [x] **create_subscription(request_dto) 함수 추가**
+
+  - FCM 구독 생성/업데이트 (UPSERT)
+  - fcm_token UNIQUE 제약 활용
+  - SubscriptionDTO 반환
+
+- [x] **get_subscription_status(fcm_token) 함수 추가**
+
+  - FCM 토큰으로 구독 상태 조회
+  - active, subscription_id, student_no, platform 정보 반환
+
+- [x] **deactivate_invalid_subscription(subscription_id) 함수 추가**
+  - 무효 토큰 구독 비활성화
+  - is_active = false로 업데이트
+
+#### 4. 알림 발송 서비스 (src/services/notifications_service.py)
+
+- [x] **get_active_subscriptions() 함수 추가**
+
+  - is_active=true인 모든 구독자 조회
+  - SubscriptionDTO 리스트 반환
+
+- [x] **log_notification_result() 함수 추가**
+
+  - 발송 결과 로깅 (UPSERT)
+  - notice_logs 테이블에 성공/실패/무효 상태 기록
+
+- [x] **deactivate_invalid_subscription() 함수 추가**
+  - 무효 토큰 구독 비활성화 호출
+
+#### 5. 구독 관리 핸들러 (src/handlers/subscriptions_handler.py)
+
+- [x] **create_subscription_handler(event, context) 함수 추가**
+
+  - POST /subscriptions 엔드포인트
+  - body 파싱: fcm_token, student_no, platform
+  - create_subscription() 서비스 호출
+  - create_success_response()로 응답
+
+- [x] **get_subscription_status_handler(event, context) 함수 추가**
+  - GET /subscriptions/status 엔드포인트
+  - 쿼리 파라미터: fcm_token
+  - get_subscription_status() 서비스 호출
+  - create_success_response()로 응답
+
+#### 6. 알림 발송 핸들러 (src/handlers/notifications_handler.py)
+
+- [x] **send_push_notification(event, context) 함수 추가**
+
+  - POST /internal/notifications/send 엔드포인트
+  - 웹훅 검증 (X-Webhook-Secret)
+  - 공지사항 정보 조회
+  - 활성 구독자 조회 및 FCM 발송
+  - 무효 토큰 자동 비활성화
+  - 발송 결과 로깅
+
+- [x] **웹훅 검증 로직**
+  - X-Webhook-Secret 헤더 검증
+  - 환경변수 WEBHOOK_SECRET과 비교
+
+#### 7. 서버리스 설정 (serverless.yml)
+
+- [x] **createSubscription 함수 추가**
+
+  - handler: src.handlers.subscriptions_handler.create_subscription_handler
+  - events: httpApi { path: /subscriptions, method: post }
+  - layers: AppDependencies
+
+- [x] **getSubscriptionStatus 함수 추가**
+
+  - handler: src.handlers.subscriptions_handler.get_subscription_status_handler
+  - events: httpApi { path: /subscriptions/status, method: get }
+  - layers: AppDependencies
+
+- [x] **sendNotification 함수 추가**
+  - handler: src.handlers.notifications_handler.send_push_notification
+  - events: httpApi { path: /internal/notifications/send, method: post }
+  - layers: AppDependencies
+  - environment: FCM_PROJECT_ID, FCM_SERVICE_ACCOUNT_JSON, WEBHOOK_SECRET
+
+#### 8. 환경변수 설정 (envs/config.dev.json)
+
+- [x] **FCM 관련 환경변수 추가**
+  - FCM_PROJECT_ID: Firebase 프로젝트 ID
+  - FCM_SERVICE_ACCOUNT_JSON: Firebase 서비스 계정 JSON (HTTP v1 API)
+  - WEBHOOK_SECRET: 웹훅 검증용 시크릿
+
+#### 9. 의존성 추가 (requirements.txt)
+
+- [x] **Firebase 관련 패키지 추가**
+  - requests: HTTP v1 API 호출용
+  - google-auth: OAuth 2.0 인증용
+  - google-auth-oauthlib: OAuth 2.0 라이브러리
+
+#### 10. OpenAPI 문서 (docs/openapi.yml)
+
+- [x] **SubscriptionCreateRequest 스키마 추가**
+
+  - fcm_token: string (required)
+  - student_no: string (required)
+  - platform: string (required, enum: [web, android, ios])
+
+- [x] **SubscriptionStatus 스키마 추가**
+
+  - active: boolean
+  - subscription_id: integer
+  - student_no: string
+  - platform: string
+  - created_at: string
+
+- [x] **NotificationSendResponse 스키마 추가**
+
+  - sent_count: integer
+  - failed_count: integer
+  - invalid_count: integer
+  - total_subscriptions: integer
+
+- [x] **API 경로 추가**
+  - POST /subscriptions
+  - GET /subscriptions/status
+  - POST /internal/notifications/send
+
+#### 11. 테스트 및 검증
+
+- [x] **구독 관리 API 테스트**
+
+  - POST /subscriptions (구독 등록)
+  - GET /subscriptions/status (구독 상태 조회)
+
+- [x] **알림 발송 API 테스트**
+
+  - POST /internal/notifications/send (알림 발송)
+  - 웹훅 시크릿 검증 테스트
+
+- [x] **무효 토큰 처리 테스트**
+
+  - 만료된 토큰으로 구독 등록
+  - 알림 발송 시 자동 비활성화 확인
+
+- [x] **에러 케이스 테스트**
+  - 400: 필수 필드 누락, 잘못된 데이터 형식
+  - 401: 웹훅 시크릿 불일치
+  - 500: FCM API 에러, DB 연결 실패
+
+### 🎯 우선순위
+
+1. **High Priority**: DTO 정의 → FCM 클라이언트 → 서비스 레이어
+2. **Medium Priority**: 핸들러 레이어 → 서버리스 설정 → 환경변수
+3. **Low Priority**: OpenAPI 문서 → 테스트 및 검증
+
+### 📝 참고사항
+
+- 기존 DB 스키마 활용 (notify.subscriptions, notify.notice_logs)
+- FCM HTTP v1 API 사용 (OAuth 2.0 + 서비스 계정 JSON)
+- 무효 토큰 자동 감지 및 비활성화
+- OAuth 2.0 액세스 토큰 자동 갱신
+- 모든 서비스 함수는 (data, error) 튜플 반환 패턴 준수
+- 핸들러는 얇게, 서비스에서 로직/에러 로깅 상세히
+- 웹훅 보안을 위한 시크릿 검증 필수
