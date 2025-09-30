@@ -599,7 +599,165 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
+  /subscriptions:
+    post:
+      summary: FCM 구독 생성
+      description: FCM 토큰을 등록하여 푸시 알림을 받을 수 있도록 구독합니다.
+      tags:
+        - Notifications
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubscriptionCreateRequest"
+            example:
+              fcm_token: "fcm_token_example_12345"
+              student_no: "20243105"
+              platform: "ios"
+      responses:
+        "200":
+          description: 구독이 성공적으로 생성되었습니다.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Subscription"
+        "400":
+          description: 잘못된 요청 (필수 필드 누락 또는 형식 오류)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: 서버 내부 오류
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /subscriptions/status:
+    get:
+      summary: FCM 구독 상태 조회
+      description: FCM 토큰을 통해 현재 구독 상태를 조회합니다.
+      tags:
+        - Notifications
+      parameters:
+        - name: fcm_token
+          in: query
+          description: 조회할 FCM 토큰
+          required: true
+          schema:
+            type: string
+          example: "fcm_token_example_12345"
+      responses:
+        "200":
+          description: 구독 상태를 성공적으로 반환했습니다.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SubscriptionStatus"
+        "400":
+          description: 잘못된 요청 (fcm_token 파라미터 누락)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: 구독을 찾을 수 없음
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: 서버 내부 오류
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /notifications:
+    post:
+      summary: 수동 알림 발송
+      description: 관리자가 수동으로 모든 구독자에게 알림을 발송합니다.
+      tags:
+        - Notifications
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NotificationSendRequest"
+            example:
+              title: "긴급 공지"
+              content: "제2정릉생활관 정보자원관리원 화재 안내"
+              notice_id: 123
+      responses:
+        "200":
+          description: 알림이 성공적으로 발송되었습니다.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationResult"
+        "400":
+          description: 잘못된 요청 (필수 필드 누락)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: 서버 내부 오류
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /webhook/notify:
+    post:
+      summary: Supabase 웹훅 (내부용)
+      description: Supabase에서 새 공지사항이 생성될 때 자동으로 호출되는 웹훅입니다.
+      tags:
+        - Notifications
+      security:
+        - WebhookSecret: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WebhookPayload"
+      responses:
+        "200":
+          description: 웹훅이 성공적으로 처리되었습니다.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationResult"
+        "401":
+          description: 인증 실패 (잘못된 웹훅 시크릿)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "400":
+          description: 잘못된 요청
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: 서버 내부 오류
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
 components:
+  securitySchemes:
+    WebhookSecret:
+      type: apiKey
+      in: header
+      name: X-Webhook-Secret
+      description: 웹훅 인증을 위한 시크릿 키
   schemas:
     Room:
       type: object
@@ -843,6 +1001,172 @@ components:
           description: 에러 메시지
           example: "Invalid request parameters"
 
+    Subscription:
+      type: object
+      description: FCM 구독 정보
+      properties:
+        id:
+          type: integer
+          description: 구독 ID
+          example: 1
+        fcm_token:
+          type: string
+          description: FCM 토큰
+          example: "fcm_token_example_12345"
+        student_no:
+          type: string
+          description: 학번
+          example: "20243105"
+        is_active:
+          type: boolean
+          description: 활성화 상태
+          example: true
+        platform:
+          type: string
+          description: 플랫폼
+          example: "ios"
+        created_at:
+          type: string
+          format: date-time
+          description: 생성일시
+          example: "2024-09-01T10:00:00Z"
+        updated_at:
+          type: string
+          format: date-time
+          description: 수정일시
+          example: "2024-09-01T10:00:00Z"
+
+    SubscriptionCreateRequest:
+      type: object
+      description: FCM 구독 생성 요청
+      required:
+        - fcm_token
+        - student_no
+      properties:
+        fcm_token:
+          type: string
+          description: FCM 토큰
+          example: "fcm_token_example_12345"
+        student_no:
+          type: string
+          description: 학번
+          example: "20192762"
+        platform:
+          type: string
+          description: 플랫폼 (기본값 web)
+          default: "web"
+          example: "web"
+
+    SubscriptionStatus:
+      type: object
+      description: FCM 구독 상태
+      properties:
+        active:
+          type: boolean
+          description: 활성화 상태
+          example: true
+        subscription_id:
+          type: integer
+          description: 구독 ID
+          example: 1
+        student_no:
+          type: string
+          description: 학번
+          example: "20243105"
+        platform:
+          type: string
+          description: 플랫폼
+          example: "ios"
+        created_at:
+          type: string
+          format: date-time
+          description: 생성일시
+          example: "2024-09-01T10:00:00Z"
+        updated_at:
+          type: string
+          format: date-time
+          description: 수정일시
+          example: "2024-09-01T10:00:00Z"
+
+    NotificationSendRequest:
+      type: object
+      description: 수동 알림 발송 요청
+      required:
+        - title
+        - content
+        - notice_id
+      properties:
+        title:
+          type: string
+          description: 알림 제목
+          example: "긴급 공지"
+        content:
+          type: string
+          description: 알림 내용
+          example: "내일 시험 일정이 변경되었습니다."
+        notice_id:
+          type: integer
+          description: 공지사항 ID
+          example: 123
+
+    NotificationResult:
+      type: object
+      description: 알림 발송 결과
+      properties:
+        success:
+          type: boolean
+          description: 발송 성공 여부
+          example: true
+        total_subscriptions:
+          type: integer
+          description: 전체 구독자 수
+          example: 150
+        success_count:
+          type: integer
+          description: 성공한 발송 수
+          example: 145
+        failure_count:
+          type: integer
+          description: 실패한 발송 수
+          example: 5
+        invalid_tokens:
+          type: array
+          items:
+            type: string
+          description: 무효한 토큰 리스트
+          example: ["token1", "token2"]
+        failed_tokens:
+          type: array
+          items:
+            type: string
+          description: 실패한 토큰 리스트
+          example: ["token3"]
+
+    WebhookPayload:
+      type: object
+      description: Supabase 웹훅 페이로드
+      properties:
+        type:
+          type: string
+          description: 이벤트 타입
+          example: "INSERT"
+        record:
+          type: object
+          description: 공지사항 데이터
+          properties:
+            id:
+              type: integer
+              description: 공지사항 ID
+              example: 123
+            title:
+              type: string
+              description: 제목
+              example: "새 공지사항"
+            content:
+              type: string
+              description: 내용
+              example: "공지사항 내용입니다."
+
 tags:
   - name: Rooms
     description: 호실 관련 API
@@ -852,3 +1176,5 @@ tags:
     description: 공지사항 관련 API
   - name: Calendar
     description: 캘린더 일정 관련 API
+  - name: Notifications
+    description: FCM 푸시 알림 관련 API
