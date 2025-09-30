@@ -21,6 +21,11 @@ from .calendar_dto import (
     CalendarCreateRequestDTO,
     CalendarUpdateRequestDTO,
 )
+from .notification_dto import (
+    SubscriptionDTO,
+    SubscriptionCreateRequestDTO,
+    NotificationLogDTO,
+)
 
 __all__ = [
     "BaseDTO",
@@ -42,4 +47,7 @@ __all__ = [
     "CalendarListDTO",
     "CalendarCreateRequestDTO",
     "CalendarUpdateRequestDTO",
+    "SubscriptionDTO",
+    "SubscriptionCreateRequestDTO",
+    "NotificationLogDTO",
 ]
