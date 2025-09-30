@@ -16,6 +16,7 @@ package:
     - "!legacy_web_scraper/**"
     - "!layer/**"
     - "!envs/**"
+    - "envs/firebase-service-account.json"
     - "!.git/**"
     - "!.gitignore"
     - "!requirements.txt"
@@ -38,6 +39,9 @@ provider:
     SUPABASE_API_KEY: ${file(envs/config.${self:provider.stage}.json):SUPABASE_API_KEY}
     API_GATEWAY_ID: ${file(envs/config.${self:provider.stage}.json):API_GATEWAY_ID}
     BILL_BUCKET_NAME: ${file(envs/config.${self:provider.stage}.json):BILL_BUCKET_NAME}
+    FCM_SERVICE_ACCOUNT_PATH: ${file(envs/config.${self:provider.stage}.json):FCM_SERVICE_ACCOUNT_PATH}
+    FCM_PROJECT_ID: ${file(envs/config.${self:provider.stage}.json):FCM_PROJECT_ID}
+    WEBHOOK_SECRET: ${file(envs/config.${self:provider.stage}.json):WEBHOOK_SECRET}
 
 layers:
   AppDependencies:
@@ -231,3 +235,46 @@ functions:
       - httpApi:
           method: get
           path: /bill/image
+
+  # FCM 구독 관리 API
+  createSubscription:
+    name: ${self:provider.stage}-api-createSubscription
+    handler: src.handlers.subscriptions_handler.create_subscription_handler
+    layers:
+      - { Ref: AppDependenciesLambdaLayer }
+    events:
+      - httpApi:
+          method: post
+          path: /subscriptions
+
+  getSubscriptionStatus:
+    name: ${self:provider.stage}-api-getSubscriptionStatus
+    handler: src.handlers.subscriptions_handler.get_subscription_status_handler
+    layers:
+      - { Ref: AppDependenciesLambdaLayer }
+    events:
+      - httpApi:
+          method: get
+          path: /subscriptions/status
+
+  # FCM 알림 발송 API
+  sendNotification:
+    name: ${self:provider.stage}-api-sendNotification
+    handler: src.handlers.notifications_handler.send_notification_handler
+    layers:
+      - { Ref: AppDependenciesLambdaLayer }
+    events:
+      - httpApi:
+          method: post
+          path: /notifications
+
+  # Supabase 웹훅 엔드포인트
+  webhookNotify:
+    name: ${self:provider.stage}-api-webhookNotify
+    handler: src.handlers.notifications_handler.webhook_handler
+    layers:
+      - { Ref: AppDependenciesLambdaLayer }
+    events:
+      - httpApi:
+          method: post
+          path: /webhook/notify
