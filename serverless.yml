@@ -32,7 +32,31 @@ provider:
   memorySize: 512
   stage: ${opt:stage, 'dev'}
   httpApi:
-    cors: true
+    cors:
+      allowedOrigins:
+        - 'http://localhost:8080'
+        - 'https://kmusds.surge.sh'
+        - 'https://student-app-sigma-red.vercel.app'
+      allowedHeaders:
+        - 'Content-Type'
+        - 'Authorization'
+        - 'Cookie'
+      allowedMethods:
+        - 'GET'
+        - 'POST'
+        - 'PUT'
+        - 'DELETE'
+        - 'OPTIONS'
+      allowCredentials: true
+      maxAge: 86400
+    authorizers:
+      cookieAuth:
+        type: request
+        functionName: cookieAuthorizer
+        identitySource:
+          - '$request.header.Cookie'
+        authorizerPayloadFormatVersion: 2.0
+        enableSimpleResponses: true
   environment:
     STAGE: ${self:provider.stage}
     SUPABASE_URL: ${file(envs/config.${self:provider.stage}.json):SUPABASE_URL}
@@ -42,6 +66,14 @@ provider:
     FCM_SERVICE_ACCOUNT_PATH: ${file(envs/config.${self:provider.stage}.json):FCM_SERVICE_ACCOUNT_PATH}
     FCM_PROJECT_ID: ${file(envs/config.${self:provider.stage}.json):FCM_PROJECT_ID}
     WEBHOOK_SECRET: ${file(envs/config.${self:provider.stage}.json):WEBHOOK_SECRET}
+    COGNITO_DOMAIN: ${file(envs/config.${self:provider.stage}.json):COGNITO_DOMAIN}
+    COGNITO_CLIENT_ID: ${file(envs/config.${self:provider.stage}.json):COGNITO_CLIENT_ID}
+    COGNITO_CLIENT_SECRET: ${file(envs/config.${self:provider.stage}.json):COGNITO_CLIENT_SECRET}
+    CALLBACK_URI: ${file(envs/config.${self:provider.stage}.json):CALLBACK_URI}
+    SIGNED_OUT_URI: ${file(envs/config.${self:provider.stage}.json):SIGNED_OUT_URI}
+    ALLOWED_REDIRECT_ORIGINS: ${file(envs/config.${self:provider.stage}.json):ALLOWED_REDIRECT_ORIGINS}
+    COOKIE_DOMAIN: ${file(envs/config.${self:provider.stage}.json):COOKIE_DOMAIN}
+    COOKIE_SECURE: ${file(envs/config.${self:provider.stage}.json):COOKIE_SECURE}
 
 layers:
   AppDependencies:
@@ -52,6 +84,12 @@ layers:
       - python3.11
 
 functions:
+  cookieAuthorizer:
+    handler: src.handlers.authorizer_handler.cookie_authorizer
+    name: ${self:provider.stage}-auth-CookieAuthorizer
+    layers:
+      - { Ref: AppDependenciesLambdaLayer }
+      
   docsUI:
     handler: src.handlers.docs_handler.serve_swagger_ui
     events:
@@ -75,6 +113,8 @@ functions:
       - httpApi:
           method: get
           path: /rooms
+          authorizer:
+            name: cookieAuth
 
   getNotices:
     name: ${self:provider.stage}-api-getNotices
@@ -85,6 +125,8 @@ functions:
       - httpApi:
           method: get
           path: /notices
+          authorizer:
+            name: cookieAuth
 
   getNoticeById:
     name: ${self:provider.stage}-api-getNoticeByID
@@ -95,6 +137,8 @@ functions:
       - httpApi:
           method: get
           path: /notice
+          authorizer:
+            name: cookieAuth
 
   getStudents:
     name: ${self:provider.stage}-api-getStudents
@@ -105,6 +149,8 @@ functions:
       - httpApi:
           method: get
           path: /students
+          authorizer:
+            name: cookieAuth
 
   getStudent:
     name: ${self:provider.stage}-api-getStudent
@@ -115,6 +161,8 @@ functions:
       - httpApi:
           method: get
           path: /student
+          authorizer:
+            name: cookieAuth
 
   createStudent:
     name: ${self:provider.stage}-api-createStudent
@@ -125,6 +173,8 @@ functions:
       - httpApi:
           method: post
           path: /student
+          authorizer:
+            name: cookieAuth
 
   updateStudent:
     name: ${self:provider.stage}-api-updateStudent
@@ -135,6 +185,8 @@ functions:
       - httpApi:
           method: put
           path: /student
+          authorizer:
+            name: cookieAuth
 
   deleteStudent:
     name: ${self:provider.stage}-api-deleteStudent
@@ -145,6 +197,8 @@ functions:
       - httpApi:
           method: delete
           path: /student
+          authorizer:
+            name: cookieAuth
 
   createNotice:
     name: ${self:provider.stage}-api-createNotice
@@ -155,6 +209,8 @@ functions:
       - httpApi:
           method: post
           path: /notice
+          authorizer:
+            name: cookieAuth
 
   deleteNotice:
     name: ${self:provider.stage}-api-deleteNotice
@@ -165,6 +221,8 @@ functions:
       - httpApi:
           method: delete
           path: /notice
+          authorizer:
+            name: cookieAuth
 
   updateNotice:
     name: ${self:provider.stage}-api-updateNotice
@@ -175,6 +233,8 @@ functions:
       - httpApi:
           method: put
           path: /notice
+          authorizer:
+            name: cookieAuth
 
   getCalendar:
     name: ${self:provider.stage}-api-getCalendar
@@ -185,6 +245,8 @@ functions:
       - httpApi:
           method: get
           path: /calendar
+          authorizer:
+            name: cookieAuth
 
   createCalendar:
     name: ${self:provider.stage}-api-createCalendar
@@ -195,6 +257,8 @@ functions:
       - httpApi:
           method: post
           path: /calendar
+          authorizer:
+            name: cookieAuth
 
   updateCalendar:
     name: ${self:provider.stage}-api-updateCalendar
@@ -205,6 +269,8 @@ functions:
       - httpApi:
           method: put
           path: /calendar
+          authorizer:
+            name: cookieAuth
 
   deleteCalendar:
     name: ${self:provider.stage}-api-deleteCalendar
@@ -215,6 +281,8 @@ functions:
       - httpApi:
           method: delete
           path: /calendar
+          authorizer:
+            name: cookieAuth
 
   billPresign:
     name: ${self:provider.stage}-api-billPresign
@@ -225,6 +293,8 @@ functions:
       - httpApi:
           method: post
           path: /bill/presign
+          authorizer:
+            name: cookieAuth
 
   billGetImage:
     name: ${self:provider.stage}-api-billGetImage
@@ -235,6 +305,8 @@ functions:
       - httpApi:
           method: get
           path: /bill/image
+          authorizer:
+            name: cookieAuth
 
   # FCM 구독 관리 API
   createSubscription:
@@ -246,6 +318,8 @@ functions:
       - httpApi:
           method: post
           path: /subscriptions
+          authorizer:
+            name: cookieAuth
 
   getSubscriptionStatus:
     name: ${self:provider.stage}-api-getSubscriptionStatus
@@ -256,6 +330,8 @@ functions:
       - httpApi:
           method: get
           path: /subscriptions/status
+          authorizer:
+            name: cookieAuth
 
   # FCM 알림 발송 API
   sendNotification:
@@ -267,6 +343,8 @@ functions:
       - httpApi:
           method: post
           path: /notifications
+          authorizer:
+            name: cookieAuth
 
   # Supabase 웹훅 엔드포인트
   webhookNotify:
@@ -278,3 +356,33 @@ functions:
       - httpApi:
           method: post
           path: /webhook/notify
+
+  authCallback:
+    name: ${self:provider.stage}-auth-Callback
+    handler: src.handlers.auth_handler.callback
+    layers:
+      - { Ref: AppDependenciesLambdaLayer }
+    events:
+      - httpApi:
+          method: get
+          path: /auth/callback
+
+  authSignedOut:
+    name: ${self:provider.stage}-auth-SignedOut
+    handler: src.handlers.auth_handler.signed_out
+    layers:
+      - { Ref: AppDependenciesLambdaLayer }
+    events:
+      - httpApi:
+          method: get
+          path: /auth/signed-out
+
+  authLogin:
+    name: ${self:provider.stage}-auth-Login
+    handler: src.handlers.auth_handler.login
+    layers:
+      - { Ref: AppDependenciesLambdaLayer }
+    events:
+      - httpApi:
+          method: get
+          path: /auth/login
