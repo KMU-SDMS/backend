@@ -13,7 +13,7 @@ CLIENT_ID = os.environ.get("COGNITO_CLIENT_ID", "")
 CLIENT_SECRET = os.environ.get("COGNITO_CLIENT_SECRET", "")
 CALLBACK_URI = os.environ.get("CALLBACK_URI", "")
 SIGNED_OUT_URI = os.environ.get("SIGNED_OUT_URI", "")
-COOKIE_DOMAIN = os.environ.get("COOKIE_DOMAIN")
+COOKIE_DOMAIN = os.environ.get("COOKIE_DOMAIN", None)
 COOKIE_SECURE = os.environ.get("COOKIE_SECURE", "true").lower() == "true"
 _ALLOWED_ORIGINS_RAW = os.environ.get("ALLOWED_REDIRECT_ORIGINS", "")
 ALLOW_ALL_REDIRECT_ORIGINS = _ALLOWED_ORIGINS_RAW.strip() == "*"
