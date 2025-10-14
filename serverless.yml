@@ -35,6 +35,8 @@ provider:
     cors:
       allowedOrigins:
         - 'http://localhost:8080'
+        - 'https://kmusds.surge.sh'
+        - 'https://student-app-sigma-red.vercel.app'
       allowedHeaders:
         - 'Content-Type'
         - 'Authorization'
