@@ -34,19 +34,19 @@ provider:
   httpApi:
     cors:
       allowedOrigins:
-        - 'http://localhost:8080'
-        - 'https://kmusds.surge.sh'
-        - 'https://student-app-sigma-red.vercel.app'
+        - "http://localhost:8080"
+        - "https://kmusds.surge.sh"
+        - "https://student-app-sigma-red.vercel.app"
       allowedHeaders:
-        - 'Content-Type'
-        - 'Authorization'
-        - 'Cookie'
+        - "Content-Type"
+        - "Authorization"
+        - "Cookie"
       allowedMethods:
-        - 'GET'
-        - 'POST'
-        - 'PUT'
-        - 'DELETE'
-        - 'OPTIONS'
+        - "GET"
+        - "POST"
+        - "PUT"
+        - "DELETE"
+        - "OPTIONS"
       allowCredentials: true
       maxAge: 86400
     authorizers:
@@ -54,7 +54,7 @@ provider:
         type: request
         functionName: cookieAuthorizer
         identitySource:
-          - '$request.header.Cookie'
+          - "$request.header.Cookie"
         authorizerPayloadFormatVersion: 2.0
         enableSimpleResponses: true
   environment:
@@ -72,7 +72,7 @@ provider:
     CALLBACK_URI: ${file(envs/config.${self:provider.stage}.json):CALLBACK_URI}
     SIGNED_OUT_URI: ${file(envs/config.${self:provider.stage}.json):SIGNED_OUT_URI}
     ALLOWED_REDIRECT_ORIGINS: ${file(envs/config.${self:provider.stage}.json):ALLOWED_REDIRECT_ORIGINS}
-    COOKIE_DOMAIN: ${file(envs/config.${self:provider.stage}.json):COOKIE_DOMAIN}
+    # COOKIE_DOMAIN: ${file(envs/config.${self:provider.stage}.json):COOKIE_DOMAIN}
     COOKIE_SECURE: ${file(envs/config.${self:provider.stage}.json):COOKIE_SECURE}
 
 layers:
@@ -89,7 +89,7 @@ functions:
     name: ${self:provider.stage}-auth-CookieAuthorizer
     layers:
       - { Ref: AppDependenciesLambdaLayer }
-      
+
   docsUI:
     handler: src.handlers.docs_handler.serve_swagger_ui
     events:
