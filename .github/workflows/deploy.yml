@@ -61,7 +61,7 @@ jobs:
         if: env.STAGE == 'dev'
         run: |
           mkdir -p envs
-          echo '{ "SUPABASE_URL": "${{ secrets.SUPABASE_URL }}", "SUPABASE_API_KEY": "${{ secrets.SUPABASE_API_KEY }}", "API_GATEWAY_ID": "${{ secrets.API_GATEWAY_ID }}", "BILL_BUCKET_NAME": "${{ secrets.BILL_BUCKET_NAME }}", "FCM_SERVICE_ACCOUNT_PATH": "envs/firebase-service-account.json", "FCM_PROJECT_ID": "${{ secrets.FCM_PROJECT_ID }}", "WEBHOOK_SECRET": "${{ secrets.WEBHOOK_SECRET }}" }' > envs/config.dev.json
+          echo '{ "SUPABASE_URL": "${{ secrets.SUPABASE_URL }}", "SUPABASE_API_KEY": "${{ secrets.SUPABASE_API_KEY }}", "API_GATEWAY_ID": "${{ secrets.API_GATEWAY_ID }}", "BILL_BUCKET_NAME": "${{ secrets.BILL_BUCKET_NAME }}", "FCM_SERVICE_ACCOUNT_PATH": "envs/firebase-service-account.json", "FCM_PROJECT_ID": "${{ secrets.FCM_PROJECT_ID }}", "WEBHOOK_SECRET": "${{ secrets.WEBHOOK_SECRET }}", "COGNITO_DOMAIN": "${{ secrets.COGNITO_DOMAIN }}", "COGNITO_CLIENT_ID": "${{ secrets.COGNITO_CLIENT_ID }}", "COGNITO_CLIENT_SECRET": "${{ secrets.COGNITO_CLIENT_SECRET }}", "COGNITO_ISSUER_URL": "${{ secrets.COGNITO_ISSUER_URL }}", "CALLBACK_URI": "${{ secrets.CALLBACK_URI }}", "SIGNED_OUT_URI": "${{ secrets.SIGNED_OUT_URI }}", "ALLOWED_REDIRECT_ORIGINS": "${{ secrets.ALLOWED_REDIRECT_ORIGINS }}", "COOKIE_SECURE": "${{ secrets.COOKIE_SECURE }}" }' > envs/config.dev.json
 
       # 6-2. prod 환경 설정 파일 생성 (이후 실제 PROD DB 연결이 필요함)
       - name: Create PROD environment file
