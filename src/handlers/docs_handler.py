@@ -19,7 +19,7 @@ SWAGGER_HTML = """<!DOCTYPE html>
     <script>
       window.onload = () => {
         SwaggerUIBundle({
-          url: "/openapi.yml",   // 여기서 스펙 요청
+          url: "openapi.yml",   // 경로 기준에 맞게 상대 경로로 요청 (/docs → /openapi.yml, /api/docs → /api/openapi.yml)
           dom_id: "#swagger-ui",
           docExpansion: "none",
           deepLinking: true,
