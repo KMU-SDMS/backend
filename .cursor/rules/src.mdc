@@ -1,10 +1,6 @@
 ---
-description: src 디렉터리 구조와 역할 요약.
-globs:
-  - src/**
-alwaysApply: true
+alwaysApply: false
 ---
-
 ## SRC Overview Rules (.mdc)
 
 ### 목적
