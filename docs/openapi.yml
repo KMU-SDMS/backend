@@ -4,7 +4,12 @@ info:
   version: "1.0.0"
   description: |
     국민대학교 스마트 기숙사 관리 시스템 API
-    Serverless Framework + AWS HTTP API 기반
+    먼저 로그인을 통해 세션을 발급받아야 합니다.
+
+    http://localhost:3000/auth/login
+
+    1. 위 링크에 접속해서 로그인 플로우를 시작합니다.
+    2. 로그인 성공 후 이 OpenAPI 문서로 리다이렉트 됩니다.
   contact:
     name: KMU SDMS Team
 
@@ -17,11 +22,8 @@ servers:
       apiId:
         default: ${env:API_GATEWAY_ID}
 
-security:
-  - cookieAuth: []
-
 paths:
-  /rooms:
+  /api/rooms:
     get:
       summary: 전체 호실 목록 조회
       description: 시스템에 등록된 모든 호실의 목록을 반환합니다.
@@ -43,7 +45,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
-  /students:
+  /api/students:
     get:
       summary: 학생 목록 조회
       description: 전체 또는 특정 호실의 학생 목록을 조회합니다.
@@ -80,7 +82,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
-  /student:
+  /api/student:
     get:
       summary: 특정 학생 조회
       description: 학생 번호를 통해 특정 학생의 상세 정보를 조회합니다.
@@ -241,7 +243,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
-  /notices:
+  /api/notices:
     get:
       summary: 공지사항 목록 조회 (페이지네이션)
       description: 페이지네이션을 통해 공지사항 목록을 조회합니다. 페이지당 10개의 공지사항을 반환합니다.
@@ -273,7 +275,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
-  /notice:
+  /api/notice:
     get:
       summary: 특정 공지사항 조회
       description: ID를 통해 특정 공지사항의 상세 정보를 조회합니다.
@@ -447,7 +449,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
-  /calendar:
+  /api/calendar:
     get:
       summary: 캘린더 일정 조회
       description: 전체 또는 특정 날짜의 캘린더 일정을 조회합니다.
@@ -600,7 +602,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
-  /subscriptions:
+  /api/subscriptions:
     post:
       summary: FCM 구독 생성
       description: FCM 토큰을 등록하여 푸시 알림을 받을 수 있도록 구독합니다.
@@ -636,7 +638,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
-  /subscriptions/status:
+  /api/subscriptions/status:
     get:
       summary: FCM 구독 상태 조회
       description: FCM 토큰을 통해 현재 구독 상태를 조회합니다.
@@ -676,7 +678,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
-  /notifications:
+  /api/notifications:
     post:
       summary: 수동 알림 발송
       description: 관리자가 수동으로 모든 구독자에게 알림을 발송합니다.
@@ -712,14 +714,15 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
-  /webhook/notify:
+  /api/webhook/notify:
     post:
       summary: Supabase 웹훅 (내부용)
-      description: Supabase에서 새 공지사항이 생성될 때 자동으로 호출되는 웹훅입니다.
+      description: Supabase에서 새 공지사항이 생성될 때 자동으로 호출되는 웹훅입니다 (굳이 조작할 필요 없음).
       tags:
         - Notifications
       security:
         - WebhookSecret: []
+      deprecated: true
       requestBody:
         required: true
         content:
@@ -752,7 +755,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
-  /bill/presign:
+  /api/bill/presign:
     post:
       summary: 관리비 고지서 업로드 URL 발급
       description: S3에 관리비 고지서 이미지를 업로드하기 위한 임시 presigned URL을 발급합니다. 발급된 URL은 5분간 유효합니다.
@@ -801,7 +804,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
-  /bill/image:
+  /api/bill/image:
     get:
       summary: 관리비 고지서 이미지 조회
       description: 저장된 관리비 고지서 이미지를 조회하기 위한 임시 다운로드 URL을 발급합니다. 발급된 URL은 5분간 유효합니다.
@@ -875,18 +878,25 @@ paths:
   /auth/login:
     get:
       summary: Cognito Hosted UI 로그인 시작
-      description: 절대 URL(화이트리스트 또는 와일드카드)에 리디렉션 정보를 담아 로그인 플로우를 시작합니다. 서버는 PKCE와 state를 설정하고 Cognito Hosted UI로 302 리다이렉트합니다.
+      description: 절대 URL(화이트리스트 오리진)로 리디렉트 정보를 담아 로그인 플로우를 시작합니다. 서버는 PKCE와 state를 설정하고 Cognito Hosted UI로 302 리다이렉트합니다.
       tags:
         - Auth
       security: []
+      deprecated: true
       parameters:
         - name: redirect
           in: query
-          required: true
-          description: 로그인 완료 후 이동할 절대 URL (허용 오리진만 가능)
+          description: 로그인 완료 후 리다이렉트할 절대 URL (허용 오리진만)
+          required: false
           schema:
             type: string
-            format: uri
+          examples:
+            admin:
+              value: "https://kmusds.surge.sh/home"
+            student:
+              value: "https://student-app-sigma-red.vercel.app/home"
+            local:
+              value: "http://localhost:3000/docs"
       responses:
         "302":
           description: Cognito Hosted UI로 리다이렉트
@@ -894,42 +904,39 @@ paths:
   /auth/callback:
     get:
       summary: Cognito 콜백
-      description: Cognito가 Authorization Code와 state를 전달하는 엔드포인트. 서버는 코드 교환 후 `atk/idk/rtk` 쿠키를 설정하고 최초 요청된 redirect로 302 리다이렉트합니다.
+      description: Cognito가 Authorization Code와 state를 전달하는 엔드포인트. 서버는 코드 교환 후 `session` 쿠키를 설정하고 최초 요청된 redirect(허용 오리진)로 302 리다이렉트하며, 미허용 또는 누락 시 기본 경로로 폴백합니다.
       tags:
         - Auth
       security: []
-      parameters:
-        - name: code
-          in: query
-          required: true
-          schema:
-            type: string
-        - name: state
-          in: query
-          required: true
-          schema:
-            type: string
+      deprecated: true
       responses:
         "302":
           description: 로그인 완료 후 최종 리다이렉트
         "400":
           description: state/code 오류
 
-  /auth/signed-out:
+  /auth/logout:
     get:
       summary: 로그아웃
-      description: 첫 호출에 redirect를 받아 임시 쿠키(lr)에 저장 후 Cognito `/logout`으로 보냅니다. Cognito 복귀 시 애플리케이션 쿠키를 모두 만료하고 lr로 최종 리다이렉트합니다.
+      description: 요청의 redirect 파라미터(절대 URL)가 허용 오리진이며 Cognito에 사전 등록된 로그아웃 URL 목록에 존재하면 해당 URL로 최종 리다이렉트합니다. 조건 불일치 시 기본 로그아웃 경로로 폴백합니다.
       tags:
         - Auth
       security: []
+      deprecated: true
       parameters:
         - name: redirect
           in: query
+          description: 로그아웃 완료 후 리다이렉트할 절대 URL (허용 오리진 + Cognito 등록 URL)
           required: false
-          description: 로그아웃 완료 후 이동할 절대 URL (첫 호출 시 필요)
           schema:
             type: string
-            format: uri
+          examples:
+            admin:
+              value: "https://kmusds.surge.sh/auth"
+            student:
+              value: "https://student-app-sigma-red.vercel.app/auth"
+            local:
+              value: "http://localhost:3000/auth"
       responses:
         "302":
           description: 로그아웃 처리 후 최종 리다이렉트 또는 Cognito 로그아웃으로 리다이렉트
@@ -942,16 +949,12 @@ paths:
 
 components:
   securitySchemes:
-    cookieAuth:
-      type: apiKey
-      in: cookie
-      name: atk
-      description: 로그인 후 설정되는 Access Token 쿠키. Lambda Authorizer가 Cookie 헤더의 `atk`로 인증합니다.
     WebhookSecret:
       type: apiKey
       in: header
       name: X-Webhook-Secret
       description: 웹훅 인증을 위한 시크릿 키
+  
   schemas:
     Room:
       type: object
@@ -1455,3 +1458,5 @@ tags:
     description: 관리비 고지서 관련 API
   - name: Notifications
     description: FCM 푸시 알림 관련 API
+  - name: Auth
+    description: 인증 관련 API (스웨거에서는 동작하지 않음)

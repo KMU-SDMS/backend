@@ -68,12 +68,14 @@ provider:
     WEBHOOK_SECRET: ${file(envs/config.${self:provider.stage}.json):WEBHOOK_SECRET}
     COGNITO_DOMAIN: ${file(envs/config.${self:provider.stage}.json):COGNITO_DOMAIN}
     COGNITO_CLIENT_ID: ${file(envs/config.${self:provider.stage}.json):COGNITO_CLIENT_ID}
-    COGNITO_CLIENT_SECRET: ${file(envs/config.${self:provider.stage}.json):COGNITO_CLIENT_SECRET}
     CALLBACK_URI: ${file(envs/config.${self:provider.stage}.json):CALLBACK_URI}
-    SIGNED_OUT_URI: ${file(envs/config.${self:provider.stage}.json):SIGNED_OUT_URI}
-    ALLOWED_REDIRECT_ORIGINS: ${file(envs/config.${self:provider.stage}.json):ALLOWED_REDIRECT_ORIGINS}
-    # COOKIE_DOMAIN: ${file(envs/config.${self:provider.stage}.json):COOKIE_DOMAIN}
     COOKIE_SECURE: ${file(envs/config.${self:provider.stage}.json):COOKIE_SECURE}
+    SESSION_TABLE: ${file(envs/config.${self:provider.stage}.json):SESSION_TABLE}
+    SESSION_TTL_SECONDS: ${file(envs/config.${self:provider.stage}.json):SESSION_TTL_SECONDS, 173404800}
+    SESSION_COOKIE_TTL_SECONDS: ${file(envs/config.${self:provider.stage}.json):SESSION_COOKIE_TTL_SECONDS, 900}
+    PERSIST_COOKIE_TTL_SECONDS: ${file(envs/config.${self:provider.stage}.json):PERSIST_COOKIE_TTL_SECONDS, 172800000}
+    ALLOWED_REDIRECT_ORIGINS: ${file(envs/config.${self:provider.stage}.json):ALLOWED_REDIRECT_ORIGINS}
+    ALLOWED_LOGOUT_URLS: ${file(envs/config.${self:provider.stage}.json):ALLOWED_LOGOUT_URLS}
 
 layers:
   AppDependencies:
@@ -84,12 +86,6 @@ layers:
       - python3.11
 
 functions:
-  cookieAuthorizer:
-    handler: src.handlers.authorizer_handler.cookie_authorizer
-    name: ${self:provider.stage}-auth-CookieAuthorizer
-    layers:
-      - { Ref: AppDependenciesLambdaLayer }
-
   docsUI:
     handler: src.handlers.docs_handler.serve_swagger_ui
     events:
@@ -104,249 +100,6 @@ functions:
           method: get
           path: /openapi.yml
 
-  getRooms:
-    name: ${self:provider.stage}-api-getRooms
-    handler: src.handlers.rooms_handler.get_all
-    layers:
-      - { Ref: AppDependenciesLambdaLayer }
-    events:
-      - httpApi:
-          method: get
-          path: /rooms
-          authorizer:
-            name: cookieAuth
-
-  getNotices:
-    name: ${self:provider.stage}-api-getNotices
-    handler: src.handlers.notices_handler.get_paginated
-    layers:
-      - { Ref: AppDependenciesLambdaLayer }
-    events:
-      - httpApi:
-          method: get
-          path: /notices
-          authorizer:
-            name: cookieAuth
-
-  getNoticeById:
-    name: ${self:provider.stage}-api-getNoticeByID
-    handler: src.handlers.notices_handler.get_one
-    layers:
-      - { Ref: AppDependenciesLambdaLayer }
-    events:
-      - httpApi:
-          method: get
-          path: /notice
-          authorizer:
-            name: cookieAuth
-
-  getStudents:
-    name: ${self:provider.stage}-api-getStudents
-    handler: src.handlers.students_handler.get_students
-    layers:
-      - { Ref: AppDependenciesLambdaLayer }
-    events:
-      - httpApi:
-          method: get
-          path: /students
-          authorizer:
-            name: cookieAuth
-
-  getStudent:
-    name: ${self:provider.stage}-api-getStudent
-    handler: src.handlers.students_handler.get_by_student_no
-    layers:
-      - { Ref: AppDependenciesLambdaLayer }
-    events:
-      - httpApi:
-          method: get
-          path: /student
-          authorizer:
-            name: cookieAuth
-
-  createStudent:
-    name: ${self:provider.stage}-api-createStudent
-    handler: src.handlers.students_handler.create
-    layers:
-      - { Ref: AppDependenciesLambdaLayer }
-    events:
-      - httpApi:
-          method: post
-          path: /student
-          authorizer:
-            name: cookieAuth
-
-  updateStudent:
-    name: ${self:provider.stage}-api-updateStudent
-    handler: src.handlers.students_handler.update
-    layers:
-      - { Ref: AppDependenciesLambdaLayer }
-    events:
-      - httpApi:
-          method: put
-          path: /student
-          authorizer:
-            name: cookieAuth
-
-  deleteStudent:
-    name: ${self:provider.stage}-api-deleteStudent
-    handler: src.handlers.students_handler.delete
-    layers:
-      - { Ref: AppDependenciesLambdaLayer }
-    events:
-      - httpApi:
-          method: delete
-          path: /student
-          authorizer:
-            name: cookieAuth
-
-  createNotice:
-    name: ${self:provider.stage}-api-createNotice
-    handler: src.handlers.notices_handler.create
-    layers:
-      - { Ref: AppDependenciesLambdaLayer }
-    events:
-      - httpApi:
-          method: post
-          path: /notice
-          authorizer:
-            name: cookieAuth
-
-  deleteNotice:
-    name: ${self:provider.stage}-api-deleteNotice
-    handler: src.handlers.notices_handler.delete
-    layers:
-      - { Ref: AppDependenciesLambdaLayer }
-    events:
-      - httpApi:
-          method: delete
-          path: /notice
-          authorizer:
-            name: cookieAuth
-
-  updateNotice:
-    name: ${self:provider.stage}-api-updateNotice
-    handler: src.handlers.notices_handler.update
-    layers:
-      - { Ref: AppDependenciesLambdaLayer }
-    events:
-      - httpApi:
-          method: put
-          path: /notice
-          authorizer:
-            name: cookieAuth
-
-  getCalendar:
-    name: ${self:provider.stage}-api-getCalendar
-    handler: src.handlers.calendar_handler.get_all
-    layers:
-      - { Ref: AppDependenciesLambdaLayer }
-    events:
-      - httpApi:
-          method: get
-          path: /calendar
-          authorizer:
-            name: cookieAuth
-
-  createCalendar:
-    name: ${self:provider.stage}-api-createCalendar
-    handler: src.handlers.calendar_handler.create
-    layers:
-      - { Ref: AppDependenciesLambdaLayer }
-    events:
-      - httpApi:
-          method: post
-          path: /calendar
-          authorizer:
-            name: cookieAuth
-
-  updateCalendar:
-    name: ${self:provider.stage}-api-updateCalendar
-    handler: src.handlers.calendar_handler.update
-    layers:
-      - { Ref: AppDependenciesLambdaLayer }
-    events:
-      - httpApi:
-          method: put
-          path: /calendar
-          authorizer:
-            name: cookieAuth
-
-  deleteCalendar:
-    name: ${self:provider.stage}-api-deleteCalendar
-    handler: src.handlers.calendar_handler.delete
-    layers:
-      - { Ref: AppDependenciesLambdaLayer }
-    events:
-      - httpApi:
-          method: delete
-          path: /calendar
-          authorizer:
-            name: cookieAuth
-
-  billPresign:
-    name: ${self:provider.stage}-api-billPresign
-    handler: src.handlers.bill_handler.presign
-    layers:
-      - { Ref: AppDependenciesLambdaLayer }
-    events:
-      - httpApi:
-          method: post
-          path: /bill/presign
-          authorizer:
-            name: cookieAuth
-
-  billGetImage:
-    name: ${self:provider.stage}-api-billGetImage
-    handler: src.handlers.bill_handler.get_image
-    layers:
-      - { Ref: AppDependenciesLambdaLayer }
-    events:
-      - httpApi:
-          method: get
-          path: /bill/image
-          authorizer:
-            name: cookieAuth
-
-  # FCM 구독 관리 API
-  createSubscription:
-    name: ${self:provider.stage}-api-createSubscription
-    handler: src.handlers.subscriptions_handler.create_subscription_handler
-    layers:
-      - { Ref: AppDependenciesLambdaLayer }
-    events:
-      - httpApi:
-          method: post
-          path: /subscriptions
-          authorizer:
-            name: cookieAuth
-
-  getSubscriptionStatus:
-    name: ${self:provider.stage}-api-getSubscriptionStatus
-    handler: src.handlers.subscriptions_handler.get_subscription_status_handler
-    layers:
-      - { Ref: AppDependenciesLambdaLayer }
-    events:
-      - httpApi:
-          method: get
-          path: /subscriptions/status
-          authorizer:
-            name: cookieAuth
-
-  # FCM 알림 발송 API
-  sendNotification:
-    name: ${self:provider.stage}-api-sendNotification
-    handler: src.handlers.notifications_handler.send_notification_handler
-    layers:
-      - { Ref: AppDependenciesLambdaLayer }
-    events:
-      - httpApi:
-          method: post
-          path: /notifications
-          authorizer:
-            name: cookieAuth
-
-  # Supabase 웹훅 엔드포인트
   webhookNotify:
     name: ${self:provider.stage}-api-webhookNotify
     handler: src.handlers.notifications_handler.webhook_handler
@@ -359,7 +112,7 @@ functions:
 
   authCallback:
     name: ${self:provider.stage}-auth-Callback
-    handler: src.handlers.auth_handler.callback
+    handler: src.handlers.bff_auth_handler.callback
     layers:
       - { Ref: AppDependenciesLambdaLayer }
     events:
@@ -367,22 +120,32 @@ functions:
           method: get
           path: /auth/callback
 
-  authSignedOut:
-    name: ${self:provider.stage}-auth-SignedOut
-    handler: src.handlers.auth_handler.signed_out
+  authLogout:
+    name: ${self:provider.stage}-auth-Logout
+    handler: src.handlers.bff_auth_handler.logout
     layers:
       - { Ref: AppDependenciesLambdaLayer }
     events:
       - httpApi:
           method: get
-          path: /auth/signed-out
+          path: /auth/logout
 
   authLogin:
     name: ${self:provider.stage}-auth-Login
-    handler: src.handlers.auth_handler.login
+    handler: src.handlers.bff_auth_handler.login
     layers:
       - { Ref: AppDependenciesLambdaLayer }
     events:
       - httpApi:
           method: get
           path: /auth/login
+
+  bffProxy:
+    name: ${self:provider.stage}-bff-Proxy
+    handler: src.handlers.bff_handler.proxy
+    layers:
+      - { Ref: AppDependenciesLambdaLayer }
+    events:
+      - httpApi:
+          method: any
+          path: /api/{proxy+}

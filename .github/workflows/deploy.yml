@@ -61,14 +61,14 @@ jobs:
         if: env.STAGE == 'dev'
         run: |
           mkdir -p envs
-          echo '{ "SUPABASE_URL": "${{ secrets.SUPABASE_URL }}", "SUPABASE_API_KEY": "${{ secrets.SUPABASE_API_KEY }}", "API_GATEWAY_ID": "${{ secrets.API_GATEWAY_ID }}", "BILL_BUCKET_NAME": "${{ secrets.BILL_BUCKET_NAME }}", "FCM_SERVICE_ACCOUNT_PATH": "envs/firebase-service-account.json", "FCM_PROJECT_ID": "${{ secrets.FCM_PROJECT_ID }}", "WEBHOOK_SECRET": "${{ secrets.WEBHOOK_SECRET }}", "COGNITO_DOMAIN": "${{ secrets.COGNITO_DOMAIN }}", "COGNITO_CLIENT_ID": "${{ secrets.COGNITO_CLIENT_ID }}", "COGNITO_CLIENT_SECRET": "${{ secrets.COGNITO_CLIENT_SECRET }}", "COGNITO_ISSUER_URL": "${{ secrets.COGNITO_ISSUER_URL }}", "CALLBACK_URI": "${{ secrets.CALLBACK_URI }}", "SIGNED_OUT_URI": "${{ secrets.SIGNED_OUT_URI }}", "ALLOWED_REDIRECT_ORIGINS": "${{ secrets.ALLOWED_REDIRECT_ORIGINS }}", "COOKIE_SECURE": "${{ secrets.COOKIE_SECURE }}" }' > envs/config.dev.json
+          echo '{ "SUPABASE_URL": "${{ secrets.DEV_SUPABASE_URL }}", "SUPABASE_API_KEY": "${{ secrets.DEV_SUPABASE_API_KEY }}", "API_GATEWAY_ID": "${{ secrets.DEV_API_GATEWAY_ID }}", "BILL_BUCKET_NAME": "${{ secrets.DEV_BILL_BUCKET_NAME }}", "FCM_SERVICE_ACCOUNT_PATH": "envs/dev-firebase-service-account.json", "FCM_PROJECT_ID": "${{ secrets.DEV_FCM_PROJECT_ID }}", "WEBHOOK_SECRET": "${{ secrets.DEV_WEBHOOK_SECRET }}", "COGNITO_DOMAIN": "${{ secrets.DEV_COGNITO_DOMAIN }}", "COGNITO_CLIENT_ID": "${{ secrets.DEV_COGNITO_CLIENT_ID }}", "CALLBACK_URI": "${{ secrets.DEV_CALLBACK_URI }}", "COOKIE_SECURE": "${{ secrets.DEV_COOKIE_SECURE }}", "SESSION_TABLE": "${{ secrets.DEV_SESSION_TABLE }}", "SESSION_TTL_SECONDS": "${{ secrets.DEV_SESSION_TTL_SECONDS }}", "SESSION_COOKIE_TTL_SECONDS": "${{ secrets.DEV_SESSION_COOKIE_TTL_SECONDS }}", "PERSIST_COOKIE_TTL_SECONDS": "${{ secrets.DEV_PERSIST_COOKIE_TTL_SECONDS }}", "ALLOWED_REDIRECT_ORIGINS": "${{ secrets.DEV_ALLOWED_REDIRECT_ORIGINS }}", "ALLOWED_LOGOUT_URLS": "${{ secrets.DEV_ALLOWED_LOGOUT_URLS }}" }' > envs/config.dev.json
 
       # 6-2. prod 환경 설정 파일 생성 (이후 실제 PROD DB 연결이 필요함)
       - name: Create PROD environment file
         if: env.STAGE == 'prod'
         run: |
           mkdir -p envs
-          echo '{ "SUPABASE_URL": "${{ secrets.PROD_SUPABASE_URL }}", "SUPABASE_API_KEY": "${{ secrets.PROD_SUPABASE_API_KEY }}", "API_GATEWAY_ID": "${{ secrets.PROD_API_GATEWAY_ID }}", "BILL_BUCKET_NAME": "${{ secrets.PROD_BILL_BUCKET_NAME }}", "FCM_SERVICE_ACCOUNT_PATH": "envs/firebase-service-account.json", "FCM_PROJECT_ID": "${{ secrets.PROD_FCM_PROJECT_ID }}", "WEBHOOK_SECRET": "${{ secrets.PROD_WEBHOOK_SECRET }}" }' > envs/config.prod.json
+          echo '{ "SUPABASE_URL": "${{ secrets.PROD_SUPABASE_URL }}", "SUPABASE_API_KEY": "${{ secrets.PROD_SUPABASE_API_KEY }}", "API_GATEWAY_ID": "${{ secrets.PROD_API_GATEWAY_ID }}", "BILL_BUCKET_NAME": "${{ secrets.PROD_BILL_BUCKET_NAME }}", "FCM_SERVICE_ACCOUNT_PATH": "envs/prod-firebase-service-account.json", "FCM_PROJECT_ID": "${{ secrets.PROD_FCM_PROJECT_ID }}", "WEBHOOK_SECRET": "${{ secrets.PROD_WEBHOOK_SECRET }}", "COGNITO_DOMAIN": "${{ secrets.PROD_COGNITO_DOMAIN }}", "COGNITO_CLIENT_ID": "${{ secrets.PROD_COGNITO_CLIENT_ID }}", "COGNITO_CLIENT_SECRET": "${{ secrets.PROD_COGNITO_CLIENT_SECRET }}", "CALLBACK_URI": "${{ secrets.PROD_CALLBACK_URI }}", "COOKIE_DOMAIN": "${{ secrets.PROD_COOKIE_DOMAIN }}", "COOKIE_SECURE": "${{ secrets.PROD_COOKIE_SECURE }}", "SESSION_TABLE": "${{ secrets.PROD_SESSION_TABLE }}", "SESSION_TTL_SECONDS": "${{ secrets.PROD_SESSION_TTL_SECONDS }}", "SESSION_COOKIE_TTL_SECONDS": "${{ secrets.PROD_SESSION_COOKIE_TTL_SECONDS }}", "PERSIST_COOKIE_TTL_SECONDS": "${{ secrets.PROD_PERSIST_COOKIE_TTL_SECONDS }}", "ALLOWED_REDIRECT_ORIGINS": "${{ secrets.PROD_ALLOWED_REDIRECT_ORIGINS }}", "ALLOWED_LOGOUT_URLS": "${{ secrets.PROD_ALLOWED_LOGOUT_URLS }}" }' > envs/config.prod.json
 
       # 7. Python Lambda Layer 빌드
       # 우리가 찾은, Docker 없이 Linux 호환 라이브러리를 설치하는 명령어 실행
@@ -88,7 +88,11 @@ jobs:
 
       # 8. Firebase Service Account JSON 파일 생성 (base64 디코딩)
       - name: Create Firebase Service Account JSON
-        run: echo "${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}" | base64 --decode > envs/firebase-service-account.json
+        if: env.STAGE == 'dev'
+        run: echo "${{ secrets.DEV_FIREBASE_SERVICE_ACCOUNT_JSON }}" | base64 --decode > envs/dev-firebase-service-account.json
+      - name: Create Firebase Service Account JSON
+        if: env.STAGE == 'prod'
+        run: echo "${{ secrets.PROD_FIREBASE_SERVICE_ACCOUNT_JSON }}" | base64 --decode > envs/prod-firebase-service-account.json
 
       # 9. Serverless Framework v4를 사용하여 AWS에 배포
       - name: Deploy to AWS (${{ env.STAGE }})

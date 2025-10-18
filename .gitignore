@@ -56,4 +56,8 @@ layer/
 # OS
 .DS_Store
 
+/agent-contexts
 *.zip
+
+*.b64
+encode.py
