@@ -127,7 +127,8 @@ def _get_cookie_map(cookie_header: str) -> Dict[str, str]:
 
 
 def login(event, context):
-    code_verifier = _base64url_encode(secrets.token_urlsafe(64).encode("utf-8"))[:128]
+    # RFC 7636: code_verifier는 임의 바이트를 base64url(패딩 제거)로 인코딩한 43~128자
+    code_verifier = _base64url_encode(os.urandom(32))  # 보통 43자
     code_challenge = _base64url_encode(
         hashlib.sha256(code_verifier.encode("utf-8")).digest()
     )
@@ -135,9 +136,7 @@ def login(event, context):
     # Nonce/state 저장은 쿠키로만. 리다이렉트 URL은 서버내 상수 사용
     set_cookie_headers: list[tuple[str, str]] = []
     set_cookie_headers.append(
-        _set_cookie(
-            "cv", urllib.parse.quote(code_verifier), max_age=600, same_site="Lax"
-        )
+        _set_cookie("cv", code_verifier, max_age=600, same_site="Lax")
     )
     state_nonce = _base64url_encode(secrets.token_bytes(16))
     set_cookie_headers.append(
@@ -171,15 +170,27 @@ def login(event, context):
 
 
 def callback(event, context):
+    print(f"[callback-request] event: {event}")
     query_params = event.get("queryStringParameters") or {}
     code = query_params.get("code")
     state_param = query_params.get("state") or ""
+    print(f"[callback-request] query_params: {query_params}")
 
     headers_in = event.get("headers") or {}
     cookie_header = headers_in.get("cookie") or headers_in.get("Cookie") or ""
+    print(f"[callback-request] cookie_header: {cookie_header}")
+    # HTTP API v2는 쿠키를 event.cookies 배열로도 전달한다. 둘을 병합해 안전하게 파싱한다.
+    cookies_array = event.get("cookies") or []
+    if isinstance(cookies_array, list) and cookies_array:
+        # "a=b" 형태들이므로 세미콜론으로 이어 동일 파서 사용
+        extra = "; ".join(cookies_array)
+        cookie_header = f"{cookie_header}; {extra}" if cookie_header else extra
     cookie_map = _get_cookie_map(cookie_header)
     code_verifier = cookie_map.get("cv")
     state_cookie = cookie_map.get("st")
+    print(
+        f"[callback-request] code_verifier: {code_verifier} state_cookie: {state_cookie}"
+    )
 
     if not state_param:
         return {"statusCode": 400, "body": "Missing state"}
@@ -189,13 +200,18 @@ def callback(event, context):
             base64.urlsafe_b64decode(padded.encode("utf-8")).decode("utf-8")
         )
         state_nonce = payload.get("s")
+        print(f"[callback-request] state_nonce: {state_nonce}")
         if not (state_cookie and state_cookie == state_nonce):
+            print(f"[callback-request] Invalid state: {state_cookie} != {state_nonce}")
             return {"statusCode": 400, "body": "Invalid state"}
     except Exception:
         return {"statusCode": 400, "body": "Malformed state"}
 
     if not code:
         return {"statusCode": 400, "body": "Missing authorization code"}
+    if not code_verifier:
+        print("[pkce] missing code_verifier cookie")
+        return {"statusCode": 400, "body": "Missing code_verifier"}
 
     token_url = f"{COGNITO_DOMAIN}/oauth2/token"
     form = {
@@ -204,17 +220,30 @@ def callback(event, context):
         "code": code,
         "redirect_uri": CALLBACK_URI,
     }
-    if code_verifier:
-        form["code_verifier"] = code_verifier
+    # PKCE는 public client에서 필수
+    form["code_verifier"] = code_verifier
     data = urllib.parse.urlencode(form).encode("utf-8")
     headers = {"Content-Type": "application/x-www-form-urlencoded"}
     req = urllib.request.Request(token_url, data=data, headers=headers)
+    print(f"[token-exchange-request] url: {req} data: {data} headers: {headers}")
 
     try:
         with urllib.request.urlopen(req, timeout=10) as resp:
             body = json.loads(resp.read().decode("utf-8"))
-    except Exception:
-        return {"statusCode": 500, "body": "token_exchange_failed"}
+        print(f"[token-exchange-response] body: {body}")
+    except urllib.error.HTTPError as e:
+        try:
+            err_text = (e.read() or b"").decode("utf-8")
+            print(f"[token-exchange-http-error-body] error_text: {err_text}")
+        except Exception:
+            err_text = ""
+        # 디버깅 편의를 위해 상태코드/간략 메시지 반환 (민감정보 제외)
+        snippet = err_text[:256]
+        print(f"[token-exchange-http-error] status={e.code} body_snippet={snippet}")
+        return {"statusCode": 500, "body": f"token_exchange_failed:{e.code}:{snippet}"}
+    except Exception as e:
+        print(f"[token-exchange-error] error_message: {getattr(e, 'message', str(e))}")
+        return {"statusCode": 500, "body": "token_exchange_failed:unknown"}
 
     access_token = body.get("access_token")
     refresh_token = body.get("refresh_token")
@@ -240,13 +269,20 @@ def callback(event, context):
     )
 
     set_cookie_headers: list[tuple[str, str]] = []
-    # same-site(8080↔3000) 환경에서는 Lax/Strict 모두 전송됨. 로컬 HTTP에서도 동작하도록 Lax 사용
+    session_samesite = "None" if COOKIE_SECURE else "Lax"
     set_cookie_headers.append(
-        _set_cookie("session", sid, max_age=SESSION_COOKIE_TTL_SECONDS, same_site="Lax")
+        _set_cookie(
+            "session",
+            sid,
+            max_age=SESSION_COOKIE_TTL_SECONDS,
+            same_site=session_samesite,
+        )
     )
     # 장기 자동 로그인을 위한 영구 쿠키(동일 sid 저장)
     set_cookie_headers.append(
-        _set_cookie("ps", sid, max_age=PERSIST_COOKIE_TTL_SECONDS, same_site="Lax")
+        _set_cookie(
+            "ps", sid, max_age=PERSIST_COOKIE_TTL_SECONDS, same_site=session_samesite
+        )
     )
     # 임시 쿠키 정리
     set_cookie_headers.append(_set_cookie("cv", "", max_age=0))
@@ -272,6 +308,10 @@ def logout(event, context):
     """완전 로그아웃: 로컬 세션 삭제 후 Cognito Hosted UI 로그아웃으로 리다이렉트."""
     headers_in = event.get("headers") or {}
     cookie_header = headers_in.get("cookie") or headers_in.get("Cookie") or ""
+    cookies_array = event.get("cookies") or []
+    if isinstance(cookies_array, list) and cookies_array:
+        extra = "; ".join(cookies_array)
+        cookie_header = f"{cookie_header}; {extra}" if cookie_header else extra
     cookie_map = _get_cookie_map(cookie_header)
     sid = cookie_map.get("session")
     if sid:

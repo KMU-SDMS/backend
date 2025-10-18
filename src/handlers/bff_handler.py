@@ -96,6 +96,10 @@ def _resolve_handler(
 def proxy(event, context):
     headers_in = event.get("headers") or {}
     cookie_header = headers_in.get("cookie") or headers_in.get("Cookie") or ""
+    cookies_array = event.get("cookies") or []
+    if isinstance(cookies_array, list) and cookies_array:
+        extra = "; ".join(cookies_array)
+        cookie_header = f"{cookie_header}; {extra}" if cookie_header else extra
     cookie_map = _get_cookie_map(cookie_header)
     sid = cookie_map.get("session") or cookie_map.get("ps")
     if not sid:
@@ -146,7 +150,12 @@ def proxy(event, context):
             )
             # 세션 쿠키 재발급(슬라이딩 윈도우)
             cookies_out.append(
-                _set_cookie("session", sid, max_age=SESSION_COOKIE_TTL_SECONDS)[1]
+                _set_cookie(
+                    "session",
+                    sid,
+                    max_age=SESSION_COOKIE_TTL_SECONDS,
+                    same_site=("None" if COOKIE_SECURE else "Lax"),
+                )[1]
             )
             new_fp = _fp(session.get("access_token", ""))
             print(
@@ -158,7 +167,12 @@ def proxy(event, context):
     # session 쿠키가 없고 ps로 인증된 경우, session 슬라이딩 발급
     if (cookie_map.get("session") is None) and (cookie_map.get("ps") == sid):
         cookies_out.append(
-            _set_cookie("session", sid, max_age=SESSION_COOKIE_TTL_SECONDS)[1]
+            _set_cookie(
+                "session",
+                sid,
+                max_age=SESSION_COOKIE_TTL_SECONDS,
+                same_site=("None" if COOKIE_SECURE else "Lax"),
+            )[1]
         )
 
     # 내부 핸들러 연결

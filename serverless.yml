@@ -16,7 +16,8 @@ package:
     - "!legacy_web_scraper/**"
     - "!layer/**"
     - "!envs/**"
-    - "envs/firebase-service-account.json"
+    - "envs/dev-firebase-service-account.json"
+    - "envs/prod-firebase-service-account.json"
     - "!.git/**"
     - "!.gitignore"
     - "!requirements.txt"
@@ -31,6 +32,20 @@ provider:
   timeout: 25
   memorySize: 512
   stage: ${opt:stage, 'dev'}
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - dynamodb:PutItem
+            - dynamodb:UpdateItem
+            - dynamodb:GetItem
+            - dynamodb:DeleteItem
+            - dynamodb:DescribeTable
+            - dynamodb:Query
+          Resource:
+            - arn:aws:dynamodb:${self:provider.region}:${aws:accountId}:table/${self:provider.environment.SESSION_TABLE}
+            - arn:aws:dynamodb:${self:provider.region}:${aws:accountId}:table/${self:provider.environment.SESSION_TABLE}/index/*
   httpApi:
     cors:
       allowedOrigins:
