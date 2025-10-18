@@ -170,15 +170,15 @@ def login(event, context):
 
 
 def callback(event, context):
-    print(f"[callback-request] {event}")
+    print(f"[callback-request] event: {event}")
     query_params = event.get("queryStringParameters") or {}
     code = query_params.get("code")
     state_param = query_params.get("state") or ""
-    print(f"[callback-request] {query_params}")
+    print(f"[callback-request] query_params: {query_params}")
 
     headers_in = event.get("headers") or {}
     cookie_header = headers_in.get("cookie") or headers_in.get("Cookie") or ""
-    print(f"[callback-request] {cookie_header}")
+    print(f"[callback-request] cookie_header: {cookie_header}")
     # HTTP API v2는 쿠키를 event.cookies 배열로도 전달한다. 둘을 병합해 안전하게 파싱한다.
     cookies_array = event.get("cookies") or []
     if isinstance(cookies_array, list) and cookies_array:
@@ -188,7 +188,9 @@ def callback(event, context):
     cookie_map = _get_cookie_map(cookie_header)
     code_verifier = cookie_map.get("cv")
     state_cookie = cookie_map.get("st")
-    print(f"[callback-request] {code_verifier} {state_cookie}")
+    print(
+        f"[callback-request] code_verifier: {code_verifier} state_cookie: {state_cookie}"
+    )
 
     if not state_param:
         return {"statusCode": 400, "body": "Missing state"}
@@ -198,8 +200,9 @@ def callback(event, context):
             base64.urlsafe_b64decode(padded.encode("utf-8")).decode("utf-8")
         )
         state_nonce = payload.get("s")
-        print(f"[callback-request] {state_nonce}")
+        print(f"[callback-request] state_nonce: {state_nonce}")
         if not (state_cookie and state_cookie == state_nonce):
+            print(f"[callback-request] Invalid state: {state_cookie} != {state_nonce}")
             return {"statusCode": 400, "body": "Invalid state"}
     except Exception:
         return {"statusCode": 400, "body": "Malformed state"}
@@ -222,16 +225,16 @@ def callback(event, context):
     data = urllib.parse.urlencode(form).encode("utf-8")
     headers = {"Content-Type": "application/x-www-form-urlencoded"}
     req = urllib.request.Request(token_url, data=data, headers=headers)
-    print(f"[token-exchange-request] {req.url} {data} {headers}")
+    print(f"[token-exchange-request] url: {req.url} data: {data} headers: {headers}")
 
     try:
         with urllib.request.urlopen(req, timeout=10) as resp:
             body = json.loads(resp.read().decode("utf-8"))
-        print(f"[token-exchange-response] {body}")
+        print(f"[token-exchange-response] body: {body}")
     except urllib.error.HTTPError as e:
         try:
             err_text = (e.read() or b"").decode("utf-8")
-            print(f"[token-exchange-http-error-body] {err_text}")
+            print(f"[token-exchange-http-error-body] error_text: {err_text}")
         except Exception:
             err_text = ""
         # 디버깅 편의를 위해 상태코드/간략 메시지 반환 (민감정보 제외)
@@ -239,7 +242,7 @@ def callback(event, context):
         print(f"[token-exchange-http-error] status={e.code} body_snippet={snippet}")
         return {"statusCode": 500, "body": f"token_exchange_failed:{e.code}:{snippet}"}
     except Exception as e:
-        print(f"[token-exchange-error] {getattr(e, 'message', str(e))}")
+        print(f"[token-exchange-error] error_message: {getattr(e, 'message', str(e))}")
         return {"statusCode": 500, "body": "token_exchange_failed:unknown"}
 
     access_token = body.get("access_token")
