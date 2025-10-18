@@ -58,3 +58,6 @@ layer/
 
 /agent-contexts
 *.zip
+
+*.b64
+encode.py
