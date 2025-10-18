@@ -79,14 +79,20 @@ layers:
 
 functions:
   docsUI:
+    name: ${self:provider.stage}-docs-UI
     handler: src.handlers.docs_handler.serve_swagger_ui
+    layers:
+      - { Ref: AppDependenciesLambdaLayer }
     events:
       - httpApi:
           method: get
           path: /docs
 
   openapiSpec:
+    name: ${self:provider.stage}-openapi-Spec
     handler: src.handlers.docs_handler.serve_openapi
+    layers:
+      - { Ref: AppDependenciesLambdaLayer }
     events:
       - httpApi:
           method: get
