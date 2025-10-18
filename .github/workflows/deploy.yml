@@ -89,10 +89,10 @@ jobs:
       # 8. Firebase Service Account JSON 파일 생성 (base64 디코딩)
       - name: Create Firebase Service Account JSON
         if: env.STAGE == 'dev'
-        run: echo "${{ secrets.DEV_FIREBASE_SERVICE_ACCOUNT_JSON }}" | base64 --decode > envs/dev-firebase-service-account.json
+        run: printf %s "${{ secrets.DEV_FIREBASE_SERVICE_ACCOUNT_JSON }}" | base64 --decode > envs/dev-firebase-service-account.json
       - name: Create Firebase Service Account JSON
         if: env.STAGE == 'prod'
-        run: echo "${{ secrets.PROD_FIREBASE_SERVICE_ACCOUNT_JSON }}" | base64 --decode > envs/prod-firebase-service-account.json
+        run: printf %s "${{ secrets.PROD_FIREBASE_SERVICE_ACCOUNT_JSON }}" | base64 --decode > envs/prod-firebase-service-account.json
 
       # 9. Serverless Framework v4를 사용하여 AWS에 배포
       - name: Deploy to AWS (${{ env.STAGE }})
