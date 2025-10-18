@@ -269,13 +269,20 @@ def callback(event, context):
     )
 
     set_cookie_headers: list[tuple[str, str]] = []
-    # same-site(8080↔3000) 환경에서는 Lax/Strict 모두 전송됨. 로컬 HTTP에서도 동작하도록 Lax 사용
+    session_samesite = "None" if COOKIE_SECURE else "Lax"
     set_cookie_headers.append(
-        _set_cookie("session", sid, max_age=SESSION_COOKIE_TTL_SECONDS, same_site="Lax")
+        _set_cookie(
+            "session",
+            sid,
+            max_age=SESSION_COOKIE_TTL_SECONDS,
+            same_site=session_samesite,
+        )
     )
     # 장기 자동 로그인을 위한 영구 쿠키(동일 sid 저장)
     set_cookie_headers.append(
-        _set_cookie("ps", sid, max_age=PERSIST_COOKIE_TTL_SECONDS, same_site="Lax")
+        _set_cookie(
+            "ps", sid, max_age=PERSIST_COOKIE_TTL_SECONDS, same_site=session_samesite
+        )
     )
     # 임시 쿠키 정리
     set_cookie_headers.append(_set_cookie("cv", "", max_age=0))
