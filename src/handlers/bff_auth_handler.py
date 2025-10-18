@@ -170,12 +170,15 @@ def login(event, context):
 
 
 def callback(event, context):
+    print(f"[callback-request] {event}")
     query_params = event.get("queryStringParameters") or {}
     code = query_params.get("code")
     state_param = query_params.get("state") or ""
+    print(f"[callback-request] {query_params}")
 
     headers_in = event.get("headers") or {}
     cookie_header = headers_in.get("cookie") or headers_in.get("Cookie") or ""
+    print(f"[callback-request] {cookie_header}")
     # HTTP API v2는 쿠키를 event.cookies 배열로도 전달한다. 둘을 병합해 안전하게 파싱한다.
     cookies_array = event.get("cookies") or []
     if isinstance(cookies_array, list) and cookies_array:
@@ -185,6 +188,7 @@ def callback(event, context):
     cookie_map = _get_cookie_map(cookie_header)
     code_verifier = cookie_map.get("cv")
     state_cookie = cookie_map.get("st")
+    print(f"[callback-request] {code_verifier} {state_cookie}")
 
     if not state_param:
         return {"statusCode": 400, "body": "Missing state"}
@@ -194,6 +198,7 @@ def callback(event, context):
             base64.urlsafe_b64decode(padded.encode("utf-8")).decode("utf-8")
         )
         state_nonce = payload.get("s")
+        print(f"[callback-request] {state_nonce}")
         if not (state_cookie and state_cookie == state_nonce):
             return {"statusCode": 400, "body": "Invalid state"}
     except Exception:
