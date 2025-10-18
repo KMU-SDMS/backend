@@ -57,3 +57,4 @@ layer/
 .DS_Store
 
 /agent-contexts
+*.zip

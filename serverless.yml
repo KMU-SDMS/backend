@@ -34,21 +34,29 @@ provider:
   httpApi:
     cors:
       allowedOrigins:
-        - 'http://localhost:8080'
-        - 'https://kmusds.surge.sh'
-        - 'https://student-app-sigma-red.vercel.app'
+        - "http://localhost:8080"
+        - "https://kmusds.surge.sh"
+        - "https://student-app-sigma-red.vercel.app"
       allowedHeaders:
-        - 'Content-Type'
-        - 'Authorization'
-        - 'Cookie'
+        - "Content-Type"
+        - "Authorization"
+        - "Cookie"
       allowedMethods:
-        - 'GET'
-        - 'POST'
-        - 'PUT'
-        - 'DELETE'
-        - 'OPTIONS'
+        - "GET"
+        - "POST"
+        - "PUT"
+        - "DELETE"
+        - "OPTIONS"
       allowCredentials: true
       maxAge: 86400
+    authorizers:
+      cookieAuth:
+        type: request
+        functionName: cookieAuthorizer
+        identitySource:
+          - "$request.header.Cookie"
+        authorizerPayloadFormatVersion: 2.0
+        enableSimpleResponses: true
   environment:
     STAGE: ${self:provider.stage}
     SUPABASE_URL: ${file(envs/config.${self:provider.stage}.json):SUPABASE_URL}
@@ -61,7 +69,6 @@ provider:
     COGNITO_DOMAIN: ${file(envs/config.${self:provider.stage}.json):COGNITO_DOMAIN}
     COGNITO_CLIENT_ID: ${file(envs/config.${self:provider.stage}.json):COGNITO_CLIENT_ID}
     CALLBACK_URI: ${file(envs/config.${self:provider.stage}.json):CALLBACK_URI}
-    COOKIE_DOMAIN: ${file(envs/config.${self:provider.stage}.json):COOKIE_DOMAIN}
     COOKIE_SECURE: ${file(envs/config.${self:provider.stage}.json):COOKIE_SECURE}
     SESSION_TABLE: ${file(envs/config.${self:provider.stage}.json):SESSION_TABLE}
     SESSION_TTL_SECONDS: ${file(envs/config.${self:provider.stage}.json):SESSION_TTL_SECONDS, 173404800}

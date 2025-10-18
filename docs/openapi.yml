@@ -755,6 +755,126 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
+  api/bill/presign:
+    post:
+      summary: 관리비 고지서 업로드 URL 발급
+      description: S3에 관리비 고지서 이미지를 업로드하기 위한 임시 presigned URL을 발급합니다. 발급된 URL은 5분간 유효합니다.
+      tags:
+        - Bills
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BillPresignRequest"
+            example:
+              contentType: "image/jpeg"
+              ext: "jpg"
+              roomId: "101"
+              type: "water"
+              year: "2025"
+              month: "9"
+      responses:
+        "200":
+          description: Presigned URL이 성공적으로 발급되었습니다.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BillPresignResponse"
+        "400":
+          description: 잘못된 요청 (필수 필드 누락 또는 유효하지 않은 값)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              examples:
+                missingField:
+                  value:
+                    error: "roomId is required."
+                invalidType:
+                  value:
+                    error: "Invalid bill type. Must be one of: water, electricity, gas"
+                invalidContentType:
+                  value:
+                    error: "contentType 'image/bmp' not allowed"
+        "500":
+          description: 서버 내부 오류
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  api/bill/image:
+    get:
+      summary: 관리비 고지서 이미지 조회
+      description: 저장된 관리비 고지서 이미지를 조회하기 위한 임시 다운로드 URL을 발급합니다. 발급된 URL은 5분간 유효합니다.
+      tags:
+        - Bills
+      parameters:
+        - name: roomId
+          in: query
+          description: 호실 번호
+          required: true
+          schema:
+            type: string
+          example: "101"
+        - name: type
+          in: query
+          description: 관리비 유형
+          required: true
+          schema:
+            type: string
+            enum: [water, electricity, gas]
+          example: "water"
+        - name: year
+          in: query
+          description: 연도
+          required: true
+          schema:
+            type: string
+          example: "2025"
+        - name: month
+          in: query
+          description: 월
+          required: true
+          schema:
+            type: string
+          example: "9"
+      responses:
+        "200":
+          description: 이미지 정보가 성공적으로 반환되었습니다.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BillImageResponse"
+        "400":
+          description: 잘못된 요청 (필수 쿼리 파라미터 누락 또는 유효하지 않은 값)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              examples:
+                missingParam:
+                  value:
+                    error: "roomId is required."
+                invalidType:
+                  value:
+                    error: "Invalid bill type. Must be one of: water, electricity, gas"
+        "404":
+          description: 이미지를 찾을 수 없음
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "No image found for the specified criteria."
+        "500":
+          description: 서버 내부 오류
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
   /auth/login:
     get:
       summary: Cognito Hosted UI 로그인 시작
@@ -1244,6 +1364,87 @@ components:
               description: 내용
               example: "공지사항 내용입니다."
 
+    BillPresignRequest:
+      type: object
+      description: 관리비 고지서 업로드 URL 발급 요청
+      required:
+        - roomId
+        - type
+        - year
+        - month
+      properties:
+        contentType:
+          type: string
+          description: |
+            이미지 MIME 타입 (기본값: application/octet-stream)
+            허용 타입: image/jpeg, image/jpg, image/png, image/gif, image/webp, image/bmp, image/tiff, image/svg+xml
+          default: "application/octet-stream"
+          example: "image/jpeg"
+        ext:
+          type: string
+          description: 파일 확장자 (선택사항, 현재 미사용)
+          example: "jpg"
+        roomId:
+          type: string
+          description: 호실 번호
+          example: "101"
+        type:
+          type: string
+          description: 관리비 유형
+          enum: [water, electricity, gas]
+          example: "water"
+        year:
+          type: string
+          description: 연도
+          example: "2025"
+        month:
+          type: string
+          description: 월
+          example: "9"
+
+    BillPresignResponse:
+      type: object
+      description: 관리비 고지서 업로드 URL 발급 응답
+      properties:
+        url:
+          type: string
+          description: S3 업로드용 presigned PUT URL (유효기간 5분)
+          example: "https://bucket-name.s3.ap-northeast-2.amazonaws.com/bills/2025/9/101/water?X-Amz-Algorithm=..."
+        key:
+          type: string
+          description: S3에 저장될 객체 키
+          example: "bills/2025/9/101/water"
+        headers:
+          type: object
+          description: 업로드 시 포함해야 할 HTTP 헤더
+          properties:
+            Content-Type:
+              type: string
+              description: Content-Type 헤더 값
+              example: "image/jpeg"
+
+    BillImageResponse:
+      type: object
+      description: 관리비 고지서 이미지 조회 응답
+      properties:
+        key:
+          type: string
+          description: S3 객체 키
+          example: "bills/2025/9/101/water"
+        url:
+          type: string
+          description: 이미지 다운로드용 presigned GET URL (유효기간 5분)
+          example: "https://bucket-name.s3.ap-northeast-2.amazonaws.com/bills/2025/9/101/water?X-Amz-Algorithm=..."
+        lastModified:
+          type: string
+          format: date-time
+          description: 파일 최종 수정 일시 (ISO 8601 형식)
+          example: "2025-09-21T09:39:05.000Z"
+        size:
+          type: integer
+          description: 파일 크기 (bytes)
+          example: 2132
+
 tags:
   - name: Rooms
     description: 호실 관련 API
@@ -1253,6 +1454,8 @@ tags:
     description: 공지사항 관련 API
   - name: Calendar
     description: 캘린더 일정 관련 API
+  - name: Bills
+    description: 관리비 고지서 관련 API
   - name: Notifications
     description: FCM 푸시 알림 관련 API
   - name: Auth
