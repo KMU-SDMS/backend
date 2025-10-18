@@ -217,13 +217,16 @@ def callback(event, context):
     data = urllib.parse.urlencode(form).encode("utf-8")
     headers = {"Content-Type": "application/x-www-form-urlencoded"}
     req = urllib.request.Request(token_url, data=data, headers=headers)
+    print(f"[token-exchange-request] {req.url} {data} {headers}")
 
     try:
         with urllib.request.urlopen(req, timeout=10) as resp:
             body = json.loads(resp.read().decode("utf-8"))
+        print(f"[token-exchange-response] {body}")
     except urllib.error.HTTPError as e:
         try:
             err_text = (e.read() or b"").decode("utf-8")
+            print(f"[token-exchange-http-error-body] {err_text}")
         except Exception:
             err_text = ""
         # 디버깅 편의를 위해 상태코드/간략 메시지 반환 (민감정보 제외)
