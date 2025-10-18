@@ -225,7 +225,7 @@ def callback(event, context):
     data = urllib.parse.urlencode(form).encode("utf-8")
     headers = {"Content-Type": "application/x-www-form-urlencoded"}
     req = urllib.request.Request(token_url, data=data, headers=headers)
-    print(f"[token-exchange-request] url: {req.url} data: {data} headers: {headers}")
+    print(f"[token-exchange-request] url: {req} data: {data} headers: {headers}")
 
     try:
         with urllib.request.urlopen(req, timeout=10) as resp:
