@@ -49,14 +49,6 @@ provider:
         - "OPTIONS"
       allowCredentials: true
       maxAge: 86400
-    authorizers:
-      cookieAuth:
-        type: request
-        functionName: cookieAuthorizer
-        identitySource:
-          - "$request.header.Cookie"
-        authorizerPayloadFormatVersion: 2.0
-        enableSimpleResponses: true
   environment:
     STAGE: ${self:provider.stage}
     SUPABASE_URL: ${file(envs/config.${self:provider.stage}.json):SUPABASE_URL}
