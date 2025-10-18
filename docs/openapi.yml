@@ -758,11 +758,25 @@ paths:
   /auth/login:
     get:
       summary: Cognito Hosted UI 로그인 시작
-      description: 절대 URL(화이트리스트 또는 와일드카드)에 리디렉션 정보를 담아 로그인 플로우를 시작합니다. 서버는 PKCE와 state를 설정하고 Cognito Hosted UI로 302 리다이렉트합니다.
+      description: 절대 URL(화이트리스트 오리진)로 리디렉트 정보를 담아 로그인 플로우를 시작합니다. 서버는 PKCE와 state를 설정하고 Cognito Hosted UI로 302 리다이렉트합니다.
       tags:
         - Auth
       security: []
       deprecated: true
+      parameters:
+        - name: redirect
+          in: query
+          description: 로그인 완료 후 리다이렉트할 절대 URL (허용 오리진만)
+          required: false
+          schema:
+            type: string
+          examples:
+            admin:
+              value: "https://kmusds.surge.sh/home"
+            student:
+              value: "https://student-app-sigma-red.vercel.app/home"
+            local:
+              value: "http://localhost:3000/docs"
       responses:
         "302":
           description: Cognito Hosted UI로 리다이렉트
@@ -770,7 +784,7 @@ paths:
   /auth/callback:
     get:
       summary: Cognito 콜백
-      description: Cognito가 Authorization Code와 state를 전달하는 엔드포인트. 서버는 코드 교환 후 `session` 쿠키를 설정하고 최초 요청된 redirect로 302 리다이렉트합니다.
+      description: Cognito가 Authorization Code와 state를 전달하는 엔드포인트. 서버는 코드 교환 후 `session` 쿠키를 설정하고 최초 요청된 redirect(허용 오리진)로 302 리다이렉트하며, 미허용 또는 누락 시 기본 경로로 폴백합니다.
       tags:
         - Auth
       security: []
@@ -781,14 +795,28 @@ paths:
         "400":
           description: state/code 오류
 
-  /auth/signed-out:
+  /auth/logout:
     get:
       summary: 로그아웃
-      description: 첫 호출에 redirect를 받아 임시 쿠키(lr)에 저장 후 Cognito `/logout`으로 보냅니다. Cognito 복귀 시 애플리케이션 쿠키를 모두 만료하고 lr로 최종 리다이렉트합니다.
+      description: 요청의 redirect 파라미터(절대 URL)가 허용 오리진이며 Cognito에 사전 등록된 로그아웃 URL 목록에 존재하면 해당 URL로 최종 리다이렉트합니다. 조건 불일치 시 기본 로그아웃 경로로 폴백합니다.
       tags:
         - Auth
       security: []
       deprecated: true
+      parameters:
+        - name: redirect
+          in: query
+          description: 로그아웃 완료 후 리다이렉트할 절대 URL (허용 오리진 + Cognito 등록 URL)
+          required: false
+          schema:
+            type: string
+          examples:
+            admin:
+              value: "https://kmusds.surge.sh/auth"
+            student:
+              value: "https://student-app-sigma-red.vercel.app/auth"
+            local:
+              value: "http://localhost:3000/auth"
       responses:
         "302":
           description: 로그아웃 처리 후 최종 리다이렉트 또는 Cognito 로그아웃으로 리다이렉트
