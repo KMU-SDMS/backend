@@ -127,7 +127,8 @@ def _get_cookie_map(cookie_header: str) -> Dict[str, str]:
 
 
 def login(event, context):
-    code_verifier = _base64url_encode(secrets.token_urlsafe(64).encode("utf-8"))[:128]
+    # RFC 7636: code_verifier는 임의 바이트를 base64url(패딩 제거)로 인코딩한 43~128자
+    code_verifier = _base64url_encode(os.urandom(32))  # 보통 43자
     code_challenge = _base64url_encode(
         hashlib.sha256(code_verifier.encode("utf-8")).digest()
     )
