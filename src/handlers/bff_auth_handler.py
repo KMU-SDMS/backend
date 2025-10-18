@@ -219,8 +219,18 @@ def callback(event, context):
     try:
         with urllib.request.urlopen(req, timeout=10) as resp:
             body = json.loads(resp.read().decode("utf-8"))
-    except Exception:
-        return {"statusCode": 500, "body": "token_exchange_failed"}
+    except urllib.error.HTTPError as e:
+        try:
+            err_text = (e.read() or b"").decode("utf-8")
+        except Exception:
+            err_text = ""
+        # 디버깅 편의를 위해 상태코드/간략 메시지 반환 (민감정보 제외)
+        snippet = err_text[:256]
+        print(f"[token-exchange-http-error] status={e.code} body_snippet={snippet}")
+        return {"statusCode": 500, "body": f"token_exchange_failed:{e.code}:{snippet}"}
+    except Exception as e:
+        print(f"[token-exchange-error] {getattr(e, 'message', str(e))}")
+        return {"statusCode": 500, "body": "token_exchange_failed:unknown"}
 
     access_token = body.get("access_token")
     refresh_token = body.get("refresh_token")
