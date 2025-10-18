@@ -96,6 +96,10 @@ def _resolve_handler(
 def proxy(event, context):
     headers_in = event.get("headers") or {}
     cookie_header = headers_in.get("cookie") or headers_in.get("Cookie") or ""
+    cookies_array = event.get("cookies") or []
+    if isinstance(cookies_array, list) and cookies_array:
+        extra = "; ".join(cookies_array)
+        cookie_header = f"{cookie_header}; {extra}" if cookie_header else extra
     cookie_map = _get_cookie_map(cookie_header)
     sid = cookie_map.get("session") or cookie_map.get("ps")
     if not sid:

@@ -177,6 +177,12 @@ def callback(event, context):
 
     headers_in = event.get("headers") or {}
     cookie_header = headers_in.get("cookie") or headers_in.get("Cookie") or ""
+    # HTTP API v2는 쿠키를 event.cookies 배열로도 전달한다. 둘을 병합해 안전하게 파싱한다.
+    cookies_array = event.get("cookies") or []
+    if isinstance(cookies_array, list) and cookies_array:
+        # "a=b" 형태들이므로 세미콜론으로 이어 동일 파서 사용
+        extra = "; ".join(cookies_array)
+        cookie_header = f"{cookie_header}; {extra}" if cookie_header else extra
     cookie_map = _get_cookie_map(cookie_header)
     code_verifier = cookie_map.get("cv")
     state_cookie = cookie_map.get("st")
@@ -272,6 +278,10 @@ def logout(event, context):
     """완전 로그아웃: 로컬 세션 삭제 후 Cognito Hosted UI 로그아웃으로 리다이렉트."""
     headers_in = event.get("headers") or {}
     cookie_header = headers_in.get("cookie") or headers_in.get("Cookie") or ""
+    cookies_array = event.get("cookies") or []
+    if isinstance(cookies_array, list) and cookies_array:
+        extra = "; ".join(cookies_array)
+        cookie_header = f"{cookie_header}; {extra}" if cookie_header else extra
     cookie_map = _get_cookie_map(cookie_header)
     sid = cookie_map.get("session")
     if sid:
