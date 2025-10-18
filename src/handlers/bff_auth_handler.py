@@ -135,9 +135,7 @@ def login(event, context):
     # Nonce/state 저장은 쿠키로만. 리다이렉트 URL은 서버내 상수 사용
     set_cookie_headers: list[tuple[str, str]] = []
     set_cookie_headers.append(
-        _set_cookie(
-            "cv", urllib.parse.quote(code_verifier), max_age=600, same_site="Lax"
-        )
+        _set_cookie("cv", code_verifier, max_age=600, same_site="Lax")
     )
     state_nonce = _base64url_encode(secrets.token_bytes(16))
     set_cookie_headers.append(
@@ -202,6 +200,9 @@ def callback(event, context):
 
     if not code:
         return {"statusCode": 400, "body": "Missing authorization code"}
+    if not code_verifier:
+        print("[pkce] missing code_verifier cookie")
+        return {"statusCode": 400, "body": "Missing code_verifier"}
 
     token_url = f"{COGNITO_DOMAIN}/oauth2/token"
     form = {
@@ -210,8 +211,8 @@ def callback(event, context):
         "code": code,
         "redirect_uri": CALLBACK_URI,
     }
-    if code_verifier:
-        form["code_verifier"] = code_verifier
+    # PKCE는 public client에서 필수
+    form["code_verifier"] = code_verifier
     data = urllib.parse.urlencode(form).encode("utf-8")
     headers = {"Content-Type": "application/x-www-form-urlencoded"}
     req = urllib.request.Request(token_url, data=data, headers=headers)
