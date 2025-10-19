@@ -95,6 +95,15 @@ def _resolve_handler(
 
 def proxy(event, context):
     headers_in = event.get("headers") or {}
+    # Preflight(OPTIONS) 요청은 인증/세션 검증 없이 바로 204로 응답
+    method = (
+        ((event.get("requestContext") or {}).get("http") or {}).get("method")
+        or headers_in.get("x-http-method-override")
+        or event.get("httpMethod")
+        or "GET"
+    )
+    if method == "OPTIONS":
+        return {"statusCode": 204, "headers": {}, "body": ""}
     cookie_header = headers_in.get("cookie") or headers_in.get("Cookie") or ""
     cookies_array = event.get("cookies") or []
     if isinstance(cookies_array, list) and cookies_array:
@@ -177,12 +186,6 @@ def proxy(event, context):
 
     # 내부 핸들러 연결
     path = (event.get("rawPath") or event.get("path") or "").rstrip("/")
-    method = (
-        ((event.get("requestContext") or {}).get("http") or {}).get("method")
-        or headers_in.get("x-http-method-override")
-        or event.get("httpMethod")
-        or "GET"
-    )
     handler, extra = _resolve_handler(path, method)
     if not handler:
         return _build_response(404, {"message": "Not Found"})
