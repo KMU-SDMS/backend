@@ -137,6 +137,28 @@ def delete_notice_by_id(notice_id: int):
 
         logger.info(f"Supabase 'notice' 테이블에서 ID {notice_id} 삭제 시작")
 
+        # 1) 연관 로그 선삭제 (notify.notice_logs -> FK: notice_id)
+        try:
+            notify_client = get_supabase_client("notify")
+            if not notify_client:
+                return None, "Supabase client could not be initialized."
+
+            logger.info(
+                f"관련 알림 로그 선삭제 시작: schema=notify, table=notice_logs, notice_id={notice_id}"
+            )
+            _ = (
+                notify_client.postgrest.schema("notify")
+                .from_("notice_logs")
+                .delete()
+                .eq("notice_id", notice_id)
+                .execute()
+            )
+        except Exception as log_delete_error:
+            logger.error(f"❌ notice_logs 선삭제 실패: {log_delete_error}")
+            error_message = getattr(log_delete_error, "message", str(log_delete_error))
+            return None, error_message
+
+        # 2) 원 공지 삭제
         response = (
             supabase.postgrest.schema("core")
             .from_("notice")
