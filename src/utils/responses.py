@@ -18,7 +18,6 @@ def create_success_response(data, status_code=200):
         "statusCode": status_code,
         "headers": {
             "Content-Type": "application/json",
-            "Access-Control-Allow-Origin": "*",
         },
         "body": json.dumps(data),
     }
@@ -31,7 +30,6 @@ def create_error_response(message, status_code):
         "statusCode": status_code,
         "headers": {
             "Content-Type": "application/json",
-            "Access-Control-Allow-Origin": "*",
         },
         "body": json.dumps({"error": message}),
     }
