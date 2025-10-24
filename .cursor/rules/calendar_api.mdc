@@ -1,0 +1,136 @@
+---
+alwaysApply: false
+---
+
+## Rule Name: calendar_api
+
+### Description:
+
+- core.schema의 `calendar` 테이블에 대해 5가지 API를 구현하기 위한 개발 가이드.
+- 테이블 필드: id(int8, PK), date(date), roll_call_type(varchar), payment_type(varchar), created_at(timestamptz)
+- 기존 규칙 준수: 핸들러는 얇게, 서비스에서 로직/에러 로깅, 서비스는 (data, error) 튜플 반환, DTO는 순수 데이터 구조, DTO 변환은 핸들러에서 수행, 쿼리 파라미터 기반 설계.
+
+### Endpoints (HTTP API):
+
+- GET /calendar → 전체 조회
+- GET /calendar?date=YYYY-MM-DD → 특정 날짜 조회
+- POST /calendar → 일정 생성
+- PUT /calendar → 일정 수정
+- DELETE /calendar?id={id} → 일정 삭제 (쿼리 파라미터)
+
+### Files to add:
+
+- src/dto/calendar_dto.py
+- src/services/calendar_service.py
+- src/handlers/calendar_handler.py
+- src/dto/**init**.py에 calendar DTO 추가 (import 및 **all** 리스트)
+- docs/openapi.yml에 calendar 섹션 추가
+- serverless.yml에 calendar 함수 라우팅 추가
+
+### DTO 설계 (순수 데이터 구조):
+
+- CalendarDTO:
+  - id:int, date:str(YYYY-MM-DD), rollCallType:str, paymentType:str
+- CalendarListDTO:
+  - items:list[CalendarDTO]
+- CalendarCreateRequestDTO:
+  - date:str(YYYY-MM-DD), rollCallType:str, paymentType:str
+- CalendarUpdateRequestDTO:
+  - id:int, date:str(YYYY-MM-DD)|None, rollCallType:str|None, paymentType:str|None
+
+### Handler 규칙 (`src/handlers/calendar_handler.py`):
+
+- 공통: `queryStringParameters`에서 파라미터 추출, `json.loads(event.get("body","{}"))`로 바디 파싱, 유효성 최소 확인(형식/필수 여부), 서비스 호출, DTO로 응답 변환, `utils.responses` 사용
+- get_all(event, context):
+  - date = query.date (optional). 존재 시 형식 `YYYY-MM-DD`만 허용
+  - data, err = calendar_service.get_calendar(date=date)
+  - return create_success_response(CalendarListDTO.from_supabase_data(data).to_dict())
+- create(event, context):
+  - body: date, rollCallType, paymentType 필수
+  - data, err = calendar_service.create_calendar(...)
+- update(event, context):
+  - body: id 필수, 나머지 필드는 선택
+  - data, err = calendar_service.update_calendar(id, fields)
+- delete(event, context):
+  - id = query.id (필수, int로 변환 시도)
+  - data, err = calendar_service.delete_calendar_by_id(id)
+
+Service 규칙 (`src/services/calendar_service.py`):
+
+- 공통: `supabase = get_supabase_client("core")` 체크, 예외는 로깅 후 `(None, str(e))`
+- get_calendar(date: str|None):
+  - base = schema("core").from\_("calendar").select("id, date, roll_call_type, payment_type, created_at")
+  - if date: `.eq("date", date)`
+  - `.order("date")`
+  - return response.data, None
+- create_calendar(date, roll_call_type, payment_type):
+  - insert({ date, roll_call_type, payment_type }) with `.select()` to return created row
+- update_calendar(id:int, fields:dict):
+  - 허용 키만 필터링: {"date","roll_call_type","payment_type"}
+  - update(fields).eq("id", id).select()
+  - 업데이트 행 없으면 "Not found"
+- delete_calendar_by_id(id:int):
+  - delete().eq("id", id).select()
+  - 반환 행 없으면 "Not found"
+
+DTO 변환 규칙 (`src/dto/calendar_dto.py`):
+
+- from_supabase_data(dict) → CalendarDTO
+  - date는 문자열(YYYY-MM-DD)로 유지
+  - roll_call_type → rollCallType, payment_type → paymentType
+- ListDTO는 배열 매핑
+
+DTO 패키지 등록 (`src/dto/__init__.py`):
+
+- import 추가: `from .calendar_dto import CalendarDTO, CalendarListDTO, CalendarCreateRequestDTO, CalendarUpdateRequestDTO`
+- **all** 리스트에 추가: "CalendarDTO", "CalendarListDTO", "CalendarCreateRequestDTO", "CalendarUpdateRequestDTO"
+
+serverless.yml (functions 추가 예시):
+
+- getCalendar:
+  - handler: src/handlers/calendar_handler.get_all
+  - events: - httpApi: { path: /calendar, method: get }
+- createCalendar:
+  - handler: src/handlers/calendar_handler.create
+  - events: - httpApi: { path: /calendar, method: post }
+- updateCalendar:
+  - handler: src/handlers/calendar_handler.update
+  - events: - httpApi: { path: /calendar, method: put }
+- deleteCalendar:
+  - handler: src/handlers/calendar_handler.delete
+  - events: - httpApi: { path: /calendar, method: delete }
+
+OpenAPI (docs/openapi.yml 추가 지침):
+
+- schemas:
+  - Calendar, CalendarCreateRequest, CalendarUpdateRequest, CalendarList
+- paths:
+  - GET /calendar
+    - parameters: date(query, string, format: date, optional)
+    - 200: CalendarList
+  - POST /calendar
+    - requestBody: CalendarCreateRequest
+    - 201: Calendar
+  - PUT /calendar
+    - requestBody: CalendarUpdateRequest
+    - 200: Calendar
+  - DELETE /calendar
+    - parameters: id(query, integer, required)
+    - 200: { message: string } or 404
+
+오류/검증 규칙:
+
+- 400: 잘못된 날짜 형식(YYYY-MM-DD 아님), 필수 필드 누락, id 정수 변환 실패
+- 404: 수정/삭제 대상 없음
+- 500: 기타 서버/외부 연동 오류
+- 로깅: handler는 진입/파라미터 요약만, service는 쿼리/예외 상세
+
+예시 요청:
+
+- GET /calendar
+- GET /calendar?date=2025-09-19
+- POST /calendar
+  - { "date":"2025-09-19", "rollCallType":"night", "paymentType":"card" }
+- PUT /calendar
+  - { "id": 12, "paymentType":"cash" }
+- DELETE /calendar?id=12

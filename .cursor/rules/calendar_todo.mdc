@@ -1,0 +1,95 @@
+---
+alwaysApply: false
+---
+
+Rule Name: calendar_todo
+
+목적:
+
+- core.calendar 테이블을 대상으로 5가지 API(GET/POST/PUT/DELETE /calendar, GET /calendar?date=)를 구현하기 위한 실행형 TODO 목록.
+- 기존 src 규칙 준수: 핸들러는 얇게, 서비스에서 로직/에러 로깅, 서비스는 (data, error) 튜플 반환, DTO는 순수 데이터 구조, 응답은 utils.responses 사용.
+
+대상 스키마(core.calendar):
+
+- id(int8, PK), date(date), roll_call_type(varchar), payment_type(varchar), created_at(timestamptz)
+
+수행 순서와 투두 (상단부터 차례로 진행):
+
+1. DTO 추가 (src/dto/calendar_dto.py)
+
+- [x] 파일 생성: `src/dto/calendar_dto.py`
+- [x] `CalendarDTO`: id:int, date:str(YYYY-MM-DD), rollCallType:str, paymentType:str
+- [x] `CalendarListDTO`: items:list[CalendarDTO]
+- [x] `CalendarCreateRequestDTO`: date:str, rollCallType:str, paymentType:str
+- [x] `CalendarUpdateRequestDTO`: id:int, date:Optional[str], rollCallType:Optional[str], paymentType:Optional[str]
+- [x] from_supabase_data(dict)->CalendarDTO, from_supabase_list(list[dict])->CalendarListDTO 구현
+- [x] 필드 매핑: roll_call_type→rollCallType, payment_type→paymentType (date는 문자열 유지)
+
+2. 서비스 구현 (src/services/calendar_service.py)
+
+- [x] 파일 생성: `src/services/calendar_service.py`
+- [x] 함수: `get_calendar(date: str|None)` — date 있으면 `.eq("date", date)`, 정렬은 `.order("date")`
+- [x] 함수: `create_calendar(date, roll_call_type, payment_type)` — `insert({...}).select()`로 생성 행 반환
+- [x] 함수: `update_calendar(id: int, fields: dict)` — 허용 키 {date, roll_call_type, payment_type}만 업데이트, `.eq("id", id).select()`; 미존재시 "Not found"
+- [x] 함수: `delete_calendar_by_id(id: int)` — `.delete().eq("id", id).select()`; 미존재시 "Not found"
+- [x] 모든 함수 try/except 로깅, `get_supabase_client("core")` 사용, `(data, error)` 반환
+
+3. 핸들러 구현 (src/handlers/calendar_handler.py)
+
+- [x] 파일 생성: `src/handlers/calendar_handler.py`
+- [x] `get_all(event, context)`: query `date`(선택), 형식 `YYYY-MM-DD` 검증 후 서비스 호출, `CalendarListDTO`로 변환
+- [x] `create(event, context)`: body에 date/rollCallType/paymentType 필수, 서비스 호출, 단건 DTO로 응답
+- [x] `update(event, context)`: body에 id 필수, 나머지 선택, 서비스 호출, 단건 DTO로 응답
+- [x] `delete(event, context)`: query `id` 필수(int 변환), 서비스 호출, 성공 메시지 반환
+- [x] `utils.responses.create_success_response` / `create_error_response` 사용, `logging.getLogger(__name__)`로 로깅
+
+4. 라우팅 추가 (serverless.yml)
+
+- [x] 함수 추가: `getCalendar` → handler `src/handlers/calendar_handler.get_all`, httpApi GET `/calendar`
+- [x] 함수 추가: `createCalendar` → handler `src/handlers/calendar_handler.create`, httpApi POST `/calendar`
+- [x] 함수 추가: `updateCalendar` → handler `src/handlers/calendar_handler.update`, httpApi PUT `/calendar`
+- [x] 함수 추가: `deleteCalendar` → handler `src/handlers/calendar_handler.delete`, httpApi DELETE `/calendar`
+- [x] `provider.httpApi.cors: true` 유지
+
+5. OpenAPI 문서 추가 (docs/openapi.yml)
+
+- [x] 스키마: `Calendar`, `CalendarCreateRequest`, `CalendarUpdateRequest`, `CalendarList`
+- [x] 경로: GET `/calendar` (query `date` 선택, format: date) → 200 `CalendarList`
+- [x] 경로: POST `/calendar` (requestBody `CalendarCreateRequest`) → 201 `Calendar`
+- [x] 경로: PUT `/calendar` (requestBody `CalendarUpdateRequest`) → 200 `Calendar`
+- [x] 경로: DELETE `/calendar` (query `id` 정수 필수) → 200 `{ message: string }`
+- [x] 서버 섹션은 환경변수 기반 apiId 유지, 간단 예시 포함
+
+6. 로컬 검증
+
+- [x] GET 전체: `curl 'GET /calendar'`
+- [x] GET 특정일: `curl 'GET /calendar?date=2025-09-19'`
+- [x] 생성: `curl -X POST '/calendar' -H 'Content-Type: application/json' -d '{"date":"2025-09-19","rollCallType":"night","paymentType":"card"}'`
+- [x] 수정: `curl -X PUT '/calendar' -H 'Content-Type: application/json' -d '{"id":1,"paymentType":"cash"}'`
+- [x] 삭제: `curl -X DELETE '/calendar?id=1'`
+
+7. 오류/상태 코드 정책
+
+- [x] 400: 잘못된 날짜 형식, 필수 필드 누락, id 정수 변환 실패
+- [x] 404: 수정/삭제 대상 없음
+- [x] 500: 기타 예외 — 서비스에서 안전한 메시지 반환, 상세는 로그에 남김
+
+완료 정의 (Done Definition)
+
+- [x] dev 스테이지에 4개 라우트(GET/POST/PUT/DELETE /calendar) 정상 배포 및 호출 가능
+- [x] 응답이 DTO 스키마와 일치, Swagger UI에서 오류 없이 렌더링
+- [x] 신규 파일 린트 통과, import 오류 없음
+- [x] API Gateway 라우트 충돌 없음
+
+비범위(Out of Scope)
+
+- 인증/인가, 캘린더 데이터 페이지네이션 — 후속 작업으로 분리
+
+산출물 목록
+
+- `src/dto/__init__.py` (calendar 관련 dto 추가)
+- `src/dto/calendar_dto.py`
+- `src/services/calendar_service.py`
+- `src/handlers/calendar_handler.py`
+- `serverless.yml` (functions 추가)
+- `docs/openapi.yml` (calendar paths/schemas 추가)

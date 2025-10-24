@@ -1,0 +1,6 @@
+supabase
+black
+boto3
+requests
+google-auth
+google-auth-oauthlib

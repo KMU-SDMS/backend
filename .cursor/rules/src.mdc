@@ -1,0 +1,231 @@
+---
+alwaysApply: false
+---
+## SRC Overview Rules (.mdc)
+
+### 목적
+
+`src/` 내부 구조와 각 모듈의 역할, 요청 흐름을 요약해 Cursor에 컨텍스트로 제공합니다.
+
+### handlers
+
+- 파일: `handlers/rooms_handler.py`
+- 역할: API Gateway 이벤트 수신 → 서비스 호출 → 표준 응답 반환
+- 엔드포인트: `GET /rooms` → `get_all(event, context)`
+
+- 파일: `handlers/notices_handler.py`
+- 역할: 공지사항 API 핸들러
+- 엔드포인트: `GET /notices?page={page}` → `get_paginated(event, context)`, `GET /notice?id={id}` → `get_one(event, context)`, `POST /notices` → `create(event, context)`
+
+- 파일: `handlers/students_handler.py`
+- 역할: 학생 정보 API 핸들러
+- 엔드포인트: `GET /students` → `get_all(event, context)`, `GET /students/{roomId}` → `get_by_room(event, context)`
+
+핵심 패턴:
+
+```python
+def get_all(event, context):
+    data, err = service.get_all_data()
+    if err:
+        return responses.create_error_response(err, 500)
+    return responses.create_success_response(data)
+
+def get_paginated(event, context):
+    query_params = event.get("queryStringParameters") or {}
+    page = int(query_params.get("page", "1"))
+    data, error = service.get_paginated_data(page=page)
+    if error:
+        return responses.create_error_response(error, 500)
+    return responses.create_success_response(data)
+
+def create(event, context):
+    try:
+        body = json.loads(event.get("body", "{}"))
+        # DTO를 사용한 요청 데이터 검증
+        # 서비스 호출 및 응답 반환
+    except json.JSONDecodeError:
+        return responses.create_error_response("Invalid JSON format.", 400)
+```
+
+### services
+
+- 파일: `services/rooms_service.py`
+- 역할: Supabase(PostgREST)로 `core.rooms` 조회 후 비즈니스 규칙 적용
+- 포인트: 스키마 지정, 필드 가공 (`room_number` → `name`)
+
+- 파일: `services/notices_service.py`
+- 역할: 공지사항 데이터 조회/생성 및 필드 변환
+- 포인트: `created_at` → `date` 변환, `get_notice_by_id()`, `create_notice()`, `get_notices_with_pagination()` 함수 (페이지당 10개 고정)
+
+- 파일: `services/students_service.py`
+- 역할: 학생 정보 조회 (전체/방별 필터링)
+- 포인트: 필드 변환 (`studentNo` → `studentIdNum`, `room_id` → `roomId`), `get_students(room_id=None)` 함수
+
+공통 패턴:
+
+```python
+supabase = get_supabase_client("core")
+response = (
+    supabase.postgrest
+    .schema("core")
+    .from_("table_name")
+    .select("fields")
+    .execute()
+)
+data = response.data
+# 필드 변환 로직
+return data, None
+```
+
+### utils
+
+1. `utils/responses.py`
+   - 표준 응답 포맷 헬퍼
+   - `create_success_response(data)` / `create_error_response(message, status_code)`
+2. `utils/supabase_client.py`
+   - Supabase 클라이언트 초기화 및 스키마 단위 캐싱
+   - 환경변수: `SUPABASE_URL`, `SUPABASE_API_KEY`
+   - 예시:
+
+```python
+client = create_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_API_KEY"])
+```
+
+### 요청 흐름 (E2E)
+
+**호실 조회:**
+
+1. API Gateway가 `GET /rooms` 수신
+2. Lambda → `handlers/rooms_handler.get_all()`
+3. `services/rooms_service.get_all_rooms()`가 Supabase 질의
+4. `RoomListDTO.from_supabase_data()`로 데이터 변환
+5. `utils/responses.create_success_response()`로 응답 반환
+
+**공지사항 페이지네이션:**
+
+1. API Gateway가 `GET /notices?page=1` 수신
+2. Lambda → `handlers/notices_handler.get_paginated()`
+3. 쿼리 파라미터에서 페이지 번호 추출 및 검증
+4. `services/notices_service.get_notices_with_pagination()`가 Supabase 질의
+5. `NoticeListDTO.from_supabase_data()`로 데이터 변환
+6. `utils/responses.create_success_response()`로 응답 반환
+
+### 환경변수(참고)
+
+- `SUPABASE_URL`: 예) `https://<project>.supabase.co`
+- `SUPABASE_API_KEY`: Anon/Service Role 키
+- Serverless에서 `envs/config.<stage>.json` 파일 참조로 주입
+
+### API 엔드포인트 요약
+
+**호실 API:**
+
+- `GET /rooms` → `handlers/rooms_handler.get_all`
+
+**공지사항 API:**
+
+- `GET /notices?page={page}` → `handlers/notices_handler.get_paginated`
+- `GET /notice?id={id}` → `handlers/notices_handler.get_one`
+- `POST /notices` → `handlers/notices_handler.create`
+
+**학생 API:**
+
+- `GET /students` → `handlers/students_handler.get_all`
+- `GET /students/{roomId}` → `handlers/students_handler.get_by_room`
+
+### 데이터 모델
+
+**Room (호실):**
+
+```json
+{
+  "id": 1,
+  "name": "101호",
+  "headcount": 4,
+  "floor": 1
+}
+```
+
+**Notice (공지사항):**
+
+```json
+{
+  "id": 1,
+  "title": "앱 업데이트 안내",
+  "content": "새로운 기능이 추가되었습니다...",
+  "date": "2024-01-15",
+  "is_important": true
+}
+```
+
+**Notice List (공지사항 목록 - 페이지네이션):**
+
+```json
+[
+  {
+    "id": 1,
+    "title": "페이지네이션 테스트 데이터 1",
+    "content": "첫 번째 페이지의 첫 번째 공지사항입니다.",
+    "date": "2025-09-10",
+    "is_important": false
+  },
+  {
+    "id": 2,
+    "title": "중요 공지",
+    "content": "이것은 중요 공지사항입니다.",
+    "date": "2025-09-09",
+    "is_important": true
+  }
+  // ... 최대 10개까지
+]
+```
+
+**Student (학생):**
+
+```json
+{
+  "id": 1,
+  "name": "홍길동",
+  "studentIdNum": "20240001",
+  "affiliation": "공과대학",
+  "major": "컴퓨터공학부",
+  "roomId": "101"
+}
+```
+
+### 에러 처리
+
+- 400: 잘못된 요청 (ID 형식 오류 등)
+- 404: 리소스를 찾을 수 없음
+- 500: 서버 내부 오류
+
+### dto
+
+- 파일: `dto/base_dto.py`
+- 역할: 모든 DTO의 기본 클래스 및 공통 기능 제공
+- 포인트: `BaseDTO`, `ErrorDTO`, `SuccessDTO` 클래스
+
+- 파일: `dto/room_dto.py`
+- 역할: 호실 관련 DTO 정의
+- 포인트: `RoomDTO`, `RoomListDTO` 클래스, Supabase 데이터 변환
+
+- 파일: `dto/notice_dto.py`
+- 역할: 공지사항 관련 DTO 정의
+- 포인트: `NoticeDTO`, `NoticeListDTO`, `NoticeCreateRequestDTO` 클래스
+
+- 파일: `dto/student_dto.py`
+- 역할: 학생 관련 DTO 정의
+- 포인트: `StudentDTO`, `StudentListDTO` 클래스
+
+### 가이드
+
+- 핸들러는 얇게, 서비스에서 로직/에러 로깅 상세히
+- 응답 포맷은 `responses.py`로 일관성 유지
+- 외부 연동 초기화 코드는 유틸로 분리해 재사용/테스트 용이성 확보
+- 공지사항 API는 rooms API와 동일한 패턴을 따름
+- POST 요청 시 JSON 파싱 및 필수 필드 검증 필수
+- 모든 서비스 함수는 `(data, error)` 튜플 반환 패턴 사용
+- **DTO 패턴**: 핸들러에서 DTO를 사용하여 요청/응답 데이터 변환 및 검증
+- **서비스 레이어**: 원시 데이터를 반환하고, DTO 변환은 핸들러에서 처리
+- **페이지네이션**: 공지사항은 페이지네이션 필수 (페이지당 10개 고정)
+- **RESTful 설계**: 쿼리 파라미터 방식 사용 (`/notice?id={id}`)

@@ -1,0 +1,99 @@
+# GitHub Actions 워크플로우의 이름
+name: Deploy to AWS Lambda
+
+# 워크플로우가 실행될 조건 (트리거)
+on:
+  push:
+    branches:
+      - dev
+      - prod
+  workflow_dispatch: {} # ← 수동 실행 버튼
+
+# 실행될 작업(Job)들의 목록
+jobs:
+  deploy:
+    # 작업의 이름
+    name: Build and Deploy to ${{ github.ref_name }}
+    # 작업이 실행될 가상 환경
+    runs-on: ubuntu-latest
+    # 수동 실행 때도 혹시 다른 브랜치를 선택 못 하게 안전장치 (선택)
+    if: ${{ github.ref_name == 'dev' || github.ref_name == 'prod' }}
+    # 환경변수 설정
+    env:
+      STAGE: ${{ github.ref_name == 'prod' && 'prod' || 'dev' }}
+      SERVERLESS_ACCESS_KEY: ${{ secrets.SERVERLESS_ACCESS_KEY }}
+
+    # 작업의 단계(Step)들
+    steps:
+      # 1. 저장소의 코드를 가상 환경으로 가져오기 (Checkout)
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2. Node.js 환경 설정 (Serverless Framework 설치용)
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      # 3. Python 3.11 환경 설정
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # 4. AWS 자격 증명 설정
+      # GitHub Secrets에 저장된 AWS 키를 사용하여 인증
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-northeast-2
+
+      # 5. Serverless Framework v4 및 npm 의존성 설치
+      - name: Install dependencies
+        run: |
+          npm install -g serverless@4
+          npm install
+
+      # 6-1. dev 환경 설정 파일 생성
+      - name: Create DEV environment file
+        if: env.STAGE == 'dev'
+        run: |
+          mkdir -p envs
+          echo '{ "SUPABASE_URL": "${{ secrets.DEV_SUPABASE_URL }}", "SUPABASE_API_KEY": "${{ secrets.DEV_SUPABASE_API_KEY }}", "API_GATEWAY_ID": "${{ secrets.DEV_API_GATEWAY_ID }}", "BILL_BUCKET_NAME": "${{ secrets.DEV_BILL_BUCKET_NAME }}", "FCM_SERVICE_ACCOUNT_PATH": "envs/dev-firebase-service-account.json", "FCM_PROJECT_ID": "${{ secrets.DEV_FCM_PROJECT_ID }}", "WEBHOOK_SECRET": "${{ secrets.DEV_WEBHOOK_SECRET }}", "COGNITO_DOMAIN": "${{ secrets.DEV_COGNITO_DOMAIN }}", "COGNITO_CLIENT_ID": "${{ secrets.DEV_COGNITO_CLIENT_ID }}", "CALLBACK_URI": "${{ secrets.DEV_CALLBACK_URI }}", "COOKIE_SECURE": "${{ secrets.DEV_COOKIE_SECURE }}", "SESSION_TABLE": "${{ secrets.DEV_SESSION_TABLE }}", "SESSION_TTL_SECONDS": "${{ secrets.DEV_SESSION_TTL_SECONDS }}", "SESSION_COOKIE_TTL_SECONDS": "${{ secrets.DEV_SESSION_COOKIE_TTL_SECONDS }}", "PERSIST_COOKIE_TTL_SECONDS": "${{ secrets.DEV_PERSIST_COOKIE_TTL_SECONDS }}", "ALLOWED_REDIRECT_ORIGINS": "${{ secrets.DEV_ALLOWED_REDIRECT_ORIGINS }}", "ALLOWED_LOGOUT_URLS": "${{ secrets.DEV_ALLOWED_LOGOUT_URLS }}" }' > envs/config.dev.json
+
+      # 6-2. prod 환경 설정 파일 생성 (이후 실제 PROD DB 연결이 필요함)
+      - name: Create PROD environment file
+        if: env.STAGE == 'prod'
+        run: |
+          mkdir -p envs
+          echo '{ "SUPABASE_URL": "${{ secrets.PROD_SUPABASE_URL }}", "SUPABASE_API_KEY": "${{ secrets.PROD_SUPABASE_API_KEY }}", "API_GATEWAY_ID": "${{ secrets.PROD_API_GATEWAY_ID }}", "BILL_BUCKET_NAME": "${{ secrets.PROD_BILL_BUCKET_NAME }}", "FCM_SERVICE_ACCOUNT_PATH": "envs/prod-firebase-service-account.json", "FCM_PROJECT_ID": "${{ secrets.PROD_FCM_PROJECT_ID }}", "WEBHOOK_SECRET": "${{ secrets.PROD_WEBHOOK_SECRET }}", "COGNITO_DOMAIN": "${{ secrets.PROD_COGNITO_DOMAIN }}", "COGNITO_CLIENT_ID": "${{ secrets.PROD_COGNITO_CLIENT_ID }}", "COGNITO_CLIENT_SECRET": "${{ secrets.PROD_COGNITO_CLIENT_SECRET }}", "CALLBACK_URI": "${{ secrets.PROD_CALLBACK_URI }}", "COOKIE_DOMAIN": "${{ secrets.PROD_COOKIE_DOMAIN }}", "COOKIE_SECURE": "${{ secrets.PROD_COOKIE_SECURE }}", "SESSION_TABLE": "${{ secrets.PROD_SESSION_TABLE }}", "SESSION_TTL_SECONDS": "${{ secrets.PROD_SESSION_TTL_SECONDS }}", "SESSION_COOKIE_TTL_SECONDS": "${{ secrets.PROD_SESSION_COOKIE_TTL_SECONDS }}", "PERSIST_COOKIE_TTL_SECONDS": "${{ secrets.PROD_PERSIST_COOKIE_TTL_SECONDS }}", "ALLOWED_REDIRECT_ORIGINS": "${{ secrets.PROD_ALLOWED_REDIRECT_ORIGINS }}", "ALLOWED_LOGOUT_URLS": "${{ secrets.PROD_ALLOWED_LOGOUT_URLS }}" }' > envs/config.prod.json
+
+      # 7. Python Lambda Layer 빌드
+      # 우리가 찾은, Docker 없이 Linux 호환 라이브러리를 설치하는 명령어 실행
+      - name: Build Python Layer
+        run: |
+          python3 -m pip install --upgrade pip
+          mkdir -p layer/python
+          python3 -m pip install \
+            --platform manylinux2014_x86_64 \
+            --target=./layer/python \
+            --implementation cp \
+            --python-version 3.11 \
+            --only-binary=:all: --upgrade \
+            -r requirements.txt
+          # 빌드 검증
+          ls -la layer/python/ | head -5
+
+      # 8. Firebase Service Account JSON 파일 생성 (base64 디코딩)
+      - name: Create Firebase Service Account JSON
+        if: env.STAGE == 'dev'
+        run: printf %s "${{ secrets.DEV_FIREBASE_SERVICE_ACCOUNT_JSON }}" | base64 --decode > envs/dev-firebase-service-account.json
+      - name: Create Firebase Service Account JSON
+        if: env.STAGE == 'prod'
+        run: printf %s "${{ secrets.PROD_FIREBASE_SERVICE_ACCOUNT_JSON }}" | base64 --decode > envs/prod-firebase-service-account.json
+
+      # 9. Serverless Framework v4를 사용하여 AWS에 배포
+      - name: Deploy to AWS (${{ env.STAGE }})
+        run: sls deploy --stage ${{ env.STAGE }}

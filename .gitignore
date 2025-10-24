@@ -56,5 +56,8 @@ layer/
 # OS
 .DS_Store
 
-# GitHub
-.github/
+/agent-contexts
+*.zip
+
+*.b64
+encode.py

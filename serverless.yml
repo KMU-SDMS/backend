@@ -1,0 +1,164 @@
+service: kmu-sdms-api
+frameworkVersion: "4"
+
+plugins:
+  - serverless-offline
+
+package:
+  individually: true
+  patterns:
+    - "src/**"
+    - "docs/**"
+    - "!serverless.yml"
+    - "!node_modules/**"
+    - "!package*.json"
+    - "!README.md"
+    - "!legacy_web_scraper/**"
+    - "!layer/**"
+    - "!envs/**"
+    - "envs/dev-firebase-service-account.json"
+    - "envs/prod-firebase-service-account.json"
+    - "!.git/**"
+    - "!.gitignore"
+    - "!requirements.txt"
+    - "!.vscode/**"
+    - "!__pycache__/**"
+    - "!**/__pycache__/**"
+
+provider:
+  name: aws
+  runtime: python3.11
+  region: ap-northeast-2
+  timeout: 25
+  memorySize: 512
+  stage: ${opt:stage, 'dev'}
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - dynamodb:PutItem
+            - dynamodb:UpdateItem
+            - dynamodb:GetItem
+            - dynamodb:DeleteItem
+            - dynamodb:DescribeTable
+            - dynamodb:Query
+          Resource:
+            - arn:aws:dynamodb:${self:provider.region}:${aws:accountId}:table/${self:provider.environment.SESSION_TABLE}
+            - arn:aws:dynamodb:${self:provider.region}:${aws:accountId}:table/${self:provider.environment.SESSION_TABLE}/index/*
+  httpApi:
+    cors:
+      allowedOrigins:
+        - "http://localhost:8080"
+        - "https://kmusds.surge.sh"
+        - "https://student-app-sigma-red.vercel.app"
+      allowedHeaders:
+        - "Content-Type"
+        - "Authorization"
+        - "Cookie"
+      allowedMethods:
+        - "GET"
+        - "POST"
+        - "PUT"
+        - "DELETE"
+        - "OPTIONS"
+      allowCredentials: true
+      maxAge: 86400
+  environment:
+    STAGE: ${self:provider.stage}
+    SUPABASE_URL: ${file(envs/config.${self:provider.stage}.json):SUPABASE_URL}
+    SUPABASE_API_KEY: ${file(envs/config.${self:provider.stage}.json):SUPABASE_API_KEY}
+    API_GATEWAY_ID: ${file(envs/config.${self:provider.stage}.json):API_GATEWAY_ID}
+    BILL_BUCKET_NAME: ${file(envs/config.${self:provider.stage}.json):BILL_BUCKET_NAME}
+    FCM_SERVICE_ACCOUNT_PATH: ${file(envs/config.${self:provider.stage}.json):FCM_SERVICE_ACCOUNT_PATH}
+    FCM_PROJECT_ID: ${file(envs/config.${self:provider.stage}.json):FCM_PROJECT_ID}
+    WEBHOOK_SECRET: ${file(envs/config.${self:provider.stage}.json):WEBHOOK_SECRET}
+    COGNITO_DOMAIN: ${file(envs/config.${self:provider.stage}.json):COGNITO_DOMAIN}
+    COGNITO_CLIENT_ID: ${file(envs/config.${self:provider.stage}.json):COGNITO_CLIENT_ID}
+    CALLBACK_URI: ${file(envs/config.${self:provider.stage}.json):CALLBACK_URI}
+    COOKIE_SECURE: ${file(envs/config.${self:provider.stage}.json):COOKIE_SECURE}
+    SESSION_TABLE: ${file(envs/config.${self:provider.stage}.json):SESSION_TABLE}
+    SESSION_TTL_SECONDS: ${file(envs/config.${self:provider.stage}.json):SESSION_TTL_SECONDS, 173404800}
+    SESSION_COOKIE_TTL_SECONDS: ${file(envs/config.${self:provider.stage}.json):SESSION_COOKIE_TTL_SECONDS, 900}
+    PERSIST_COOKIE_TTL_SECONDS: ${file(envs/config.${self:provider.stage}.json):PERSIST_COOKIE_TTL_SECONDS, 172800000}
+    ALLOWED_REDIRECT_ORIGINS: ${file(envs/config.${self:provider.stage}.json):ALLOWED_REDIRECT_ORIGINS}
+    ALLOWED_LOGOUT_URLS: ${file(envs/config.${self:provider.stage}.json):ALLOWED_LOGOUT_URLS}
+
+layers:
+  AppDependencies:
+    path: layer
+    name: ${self:provider.stage}-app-dependencies
+    description: "스마트 기숙사 관리 시스템 Python 의존성"
+    compatibleRuntimes:
+      - python3.11
+
+functions:
+  docsUI:
+    name: ${self:provider.stage}-docs-UI
+    handler: src.handlers.docs_handler.serve_swagger_ui
+    layers:
+      - { Ref: AppDependenciesLambdaLayer }
+    events:
+      - httpApi:
+          method: get
+          path: /docs
+
+  openapiSpec:
+    name: ${self:provider.stage}-openapi-Spec
+    handler: src.handlers.docs_handler.serve_openapi
+    layers:
+      - { Ref: AppDependenciesLambdaLayer }
+    events:
+      - httpApi:
+          method: get
+          path: /openapi.yml
+
+  webhookNotify:
+    name: ${self:provider.stage}-api-webhookNotify
+    handler: src.handlers.notifications_handler.webhook_handler
+    layers:
+      - { Ref: AppDependenciesLambdaLayer }
+    events:
+      - httpApi:
+          method: post
+          path: /webhook/notify
+
+  authCallback:
+    name: ${self:provider.stage}-auth-Callback
+    handler: src.handlers.bff_auth_handler.callback
+    layers:
+      - { Ref: AppDependenciesLambdaLayer }
+    events:
+      - httpApi:
+          method: get
+          path: /auth/callback
+
+  authLogout:
+    name: ${self:provider.stage}-auth-Logout
+    handler: src.handlers.bff_auth_handler.logout
+    layers:
+      - { Ref: AppDependenciesLambdaLayer }
+    events:
+      - httpApi:
+          method: get
+          path: /auth/logout
+
+  authLogin:
+    name: ${self:provider.stage}-auth-Login
+    handler: src.handlers.bff_auth_handler.login
+    layers:
+      - { Ref: AppDependenciesLambdaLayer }
+    events:
+      - httpApi:
+          method: get
+          path: /auth/login
+
+  bffProxy:
+    name: ${self:provider.stage}-bff-Proxy
+    handler: src.handlers.bff_handler.proxy
+    layers:
+      - { Ref: AppDependenciesLambdaLayer }
+    events:
+      - httpApi:
+          method: any
+          path: /api/{proxy+}
