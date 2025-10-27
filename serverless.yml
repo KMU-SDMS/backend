@@ -48,10 +48,7 @@ provider:
             - arn:aws:dynamodb:${self:provider.region}:${aws:accountId}:table/${self:provider.environment.SESSION_TABLE}/index/*
   httpApi:
     cors:
-      allowedOrigins:
-        - "http://localhost:8080"
-        - "https://kmusds.surge.sh"
-        - "https://student-app-sigma-red.vercel.app"
+      allowedOrigins: ${file(envs/config.${self:provider.stage}.json):CORS_ORIGINS}
       allowedHeaders:
         - "Content-Type"
         - "Authorization"
