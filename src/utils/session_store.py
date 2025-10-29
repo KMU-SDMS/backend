@@ -120,3 +120,72 @@ def base64_encode(data: bytes) -> str:
     import base64
 
     return base64.b64encode(data).decode("utf-8")
+
+
+def validate_session_security(existing_sid, headers_in, request_context):
+    """완전한 세션 보안 검증"""
+
+    session_data = get_session(existing_sid)
+
+    if not session_data:
+        return None, "session_not_found_in_db"
+
+    # 2. 세션 데이터 무결성 검증
+    required_fields = ["access_token", "expires_at", "ua_hash", "ip", "created_at"]
+    for field in required_fields:
+        if field not in session_data or not session_data[field]:
+            return None, f"session_data_corrupted_missing_{field}"
+
+    # 3. 만료 시간 검증
+    current_time = int(time.time())
+    expires_at = session_data.get("expires_at", 0)
+
+    if expires_at <= current_time:
+        # 만료된 세션은 삭제
+        delete_session(existing_sid)
+        return None, "session_expired"
+
+    # 4. User-Agent + IP 해시 검증 (세션 하이재킹 방지)
+    ua = headers_in.get("user-agent", "")
+    ip = request_context.get("http", {}).get("sourceIp", "")
+    current_ua_hash = build_user_agent_ip_hash(ua, ip)
+    stored_ua_hash = session_data.get("ua_hash", "")
+
+    if stored_ua_hash != current_ua_hash:
+        print(
+            f"[security] Session hijacking detected! stored_hash={stored_ua_hash[:8]}... current_hash={current_ua_hash[:8]}..."
+        )
+        # 하이재킹 감지 시 즉시 세션 삭제
+        delete_session(existing_sid)
+        return None, "session_hijacking_detected"
+
+    # 5. 토큰 갱신 필요 여부 확인
+    token_refresh_threshold = 300  # 5분 전에 미리 갱신
+    if expires_at - current_time < token_refresh_threshold:
+        refresh_token = session_data.get("refresh_token")
+        if refresh_token:
+
+            refresh_result = refresh_access_token(refresh_token)
+
+            if refresh_result:
+                new_access_token, expires_in, new_refresh_token = refresh_result
+                new_expires_at = current_time + expires_in
+
+                # 세션 업데이트 (보안 정보 유지)
+                put_session(
+                    existing_sid,
+                    access_token=new_access_token,
+                    refresh_token=new_refresh_token or refresh_token,
+                    expires_at=new_expires_at,
+                    ua_hash=stored_ua_hash,  # 기존 해시 유지
+                    ip=session_data.get("ip", ""),
+                )
+
+                print(f"[login] Token refreshed successfully")
+                return session_data, "valid"
+            else:
+                # 토큰 갱신 실패
+                delete_session(existing_sid)
+                return None, "token_refresh_failed"
+
+    return session_data, "valid"
