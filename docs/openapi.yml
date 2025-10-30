@@ -6,10 +6,12 @@ info:
     국민대학교 스마트 기숙사 관리 시스템 API
     먼저 로그인을 통해 세션을 발급받아야 합니다.
 
-    http://localhost:3000/auth/login
-
-    1. 위 링크에 접속해서 로그인 플로우를 시작합니다.
-    2. 로그인 성공 후 이 OpenAPI 문서로 리다이렉트 됩니다.
+    **인증 엔드포인트 사용 방법:**
+    - 인증 엔드포인트(`/auth/admin/login`, `/auth/user/login` 등)는 302 리다이렉트를 반환하므로
+      스웨거 UI에서 직접 테스트하기 어렵습니다.
+    - 실제 사용은 프론트엔드 애플리케이션에서 브라우저를 통해 리다이렉트 플로우로 진행됩니다.
+    - 프론트엔드에서 해당 엔드포인트를 호출하면 Cognito Hosted UI로 리다이렉트되고,
+      로그인 성공 후 지정한 redirect URL로 최종 리다이렉트됩니다.
   contact:
     name: KMU SDMS Team
 
@@ -947,6 +949,214 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
+  /auth/admin/login:
+    get:
+      summary: 관리자 Cognito Hosted UI 로그인 시작
+      description: 관리자용 로그인 플로우를 시작합니다. 서버는 PKCE와 state를 설정하고 Cognito Hosted UI로 302 리다이렉트합니다. 기존 유효한 세션이 있으면 바로 리다이렉트합니다.
+      tags:
+        - Auth
+      security: []
+      parameters:
+        - name: redirect
+          in: query
+          description: 로그인 완료 후 리다이렉트할 절대 URL (허용된 관리자 오리진만)
+          required: false
+          schema:
+            type: string
+          examples:
+            adminPage:
+              value: "https://kmu-sdms-admin-page.vercel.app/home"
+            surge:
+              value: "https://kmu-sdbms-admin-page.surge.sh/home"
+            local:
+              value: "http://localhost:3000/docs"
+      responses:
+        "302":
+          description: Cognito Hosted UI로 리다이렉트 또는 기존 세션이 있으면 redirect 파라미터로 직접 리다이렉트
+        "400":
+          description: redirect 파라미터가 없거나 허용되지 않은 오리진
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: 서버 내부 오류 (설정 누락 등)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /auth/admin/callback:
+    get:
+      summary: 관리자 Cognito 콜백
+      description: Cognito가 관리자 인증 후 Authorization Code와 state를 전달하는 엔드포인트. 서버는 코드 교환 후 `session` 쿠키를 설정하고 최초 요청된 redirect(허용된 관리자 오리진)로 302 리다이렉트합니다.
+      tags:
+        - Auth
+      security: []
+      parameters:
+        - name: code
+          in: query
+          description: Cognito에서 전달받은 Authorization Code
+          required: true
+          schema:
+            type: string
+        - name: state
+          in: query
+          description: CSRF 방지를 위한 state 값
+          required: true
+          schema:
+            type: string
+      responses:
+        "302":
+          description: 로그인 완료 후 최종 리다이렉트
+        "400":
+          description: state/code 오류 또는 redirect 누락/허용되지 않은 오리진
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: 토큰 교환 실패 또는 서버 내부 오류
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /auth/admin/logout:
+    get:
+      summary: 관리자 로그아웃
+      description: 관리자 세션을 삭제하고, 요청의 redirect 파라미터(절대 URL)가 허용된 관리자 오리진이며 Cognito에 사전 등록된 로그아웃 URL 목록에 존재하면 해당 URL로 최종 리다이렉트합니다.
+      tags:
+        - Auth
+      security: []
+      parameters:
+        - name: redirect
+          in: query
+          description: 로그아웃 완료 후 리다이렉트할 절대 URL (허용된 관리자 오리진 + Cognito 등록 URL)
+          required: false
+          schema:
+            type: string
+          examples:
+            adminPage:
+              value: "https://kmu-sdms-admin-page.vercel.app/auth"
+            surge:
+              value: "https://kmu-sdbms-admin-page.surge.sh/auth"
+            local:
+              value: "http://localhost:3000/auth"
+      responses:
+        "302":
+          description: 로그아웃 처리 후 최종 리다이렉트 또는 Cognito 로그아웃으로 리다이렉트
+        "400":
+          description: redirect 누락/허용되지 않은 오리진
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /auth/user/login:
+    get:
+      summary: 사용자 Cognito Hosted UI 로그인 시작
+      description: 사용자(학생)용 로그인 플로우를 시작합니다. 서버는 PKCE와 state를 설정하고 Cognito Hosted UI로 302 리다이렉트합니다. 기존 유효한 세션이 있으면 바로 리다이렉트합니다.
+      tags:
+        - Auth
+      security: []
+      parameters:
+        - name: redirect
+          in: query
+          description: 로그인 완료 후 리다이렉트할 절대 URL (허용된 사용자 오리진만)
+          required: false
+          schema:
+            type: string
+          examples:
+            studentApp:
+              value: "https://student-app-sigma-red.vercel.app/home"
+            surge:
+              value: "https://kmusds.surge.sh/home"
+            local:
+              value: "http://localhost:3000/docs"
+      responses:
+        "302":
+          description: Cognito Hosted UI로 리다이렉트 또는 기존 세션이 있으면 redirect 파라미터로 직접 리다이렉트
+        "400":
+          description: redirect 파라미터가 없거나 허용되지 않은 오리진
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: 서버 내부 오류 (설정 누락 등)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /auth/user/callback:
+    get:
+      summary: 사용자 Cognito 콜백
+      description: Cognito가 사용자 인증 후 Authorization Code와 state를 전달하는 엔드포인트. 서버는 코드 교환 후 `session` 쿠키를 설정하고 최초 요청된 redirect(허용된 사용자 오리진)로 302 리다이렉트합니다.
+      tags:
+        - Auth
+      security: []
+      parameters:
+        - name: code
+          in: query
+          description: Cognito에서 전달받은 Authorization Code
+          required: true
+          schema:
+            type: string
+        - name: state
+          in: query
+          description: CSRF 방지를 위한 state 값
+          required: true
+          schema:
+            type: string
+      responses:
+        "302":
+          description: 로그인 완료 후 최종 리다이렉트
+        "400":
+          description: state/code 오류 또는 redirect 누락/허용되지 않은 오리진
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: 토큰 교환 실패 또는 서버 내부 오류
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /auth/user/logout:
+    get:
+      summary: 사용자 로그아웃
+      description: 사용자 세션을 삭제하고, 요청의 redirect 파라미터(절대 URL)가 허용된 사용자 오리진이며 Cognito에 사전 등록된 로그아웃 URL 목록에 존재하면 해당 URL로 최종 리다이렉트합니다.
+      tags:
+        - Auth
+      security: []
+      parameters:
+        - name: redirect
+          in: query
+          description: 로그아웃 완료 후 리다이렉트할 절대 URL (허용된 사용자 오리진 + Cognito 등록 URL)
+          required: false
+          schema:
+            type: string
+          examples:
+            studentApp:
+              value: "https://student-app-sigma-red.vercel.app/auth"
+            surge:
+              value: "https://kmusds.surge.sh/auth"
+            local:
+              value: "http://localhost:3000/auth"
+      responses:
+        "302":
+          description: 로그아웃 처리 후 최종 리다이렉트 또는 Cognito 로그아웃으로 리다이렉트
+        "400":
+          description: redirect 누락/허용되지 않은 오리진
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
 components:
   securitySchemes:
     WebhookSecret:
@@ -954,7 +1164,7 @@ components:
       in: header
       name: X-Webhook-Secret
       description: 웹훅 인증을 위한 시크릿 키
-  
+
   schemas:
     Room:
       type: object
