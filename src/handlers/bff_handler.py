@@ -10,6 +10,7 @@ from typing import Any, Callable, Dict, Tuple
 from src.utils.session_store import (
     get_session,
     refresh_access_token,
+    refresh_access_token_for,
     put_session,
     build_user_agent_ip_hash,
 )
@@ -141,14 +142,18 @@ def proxy(event, context):
         print(
             f"[refresh-check] now={now} expires_at={expires_at} do_refresh=True sid_fp={_fp(sid)} access_fp={old_fp}"
         )
-        refreshed = refresh_access_token(refresh_token)
+        # 세션에서 audience 정보 가져오기 (admin/user 구분)
+        audience = session.get("audience")
+        refreshed = refresh_access_token_for(
+            audience, refresh_token
+        ) or refresh_access_token(refresh_token)
         if refreshed is not None:
             access_token, expires_in, new_refresh = refreshed
             session["access_token"] = access_token
             session["expires_at"] = now + int(expires_in)
             if new_refresh:
                 session["refresh_token"] = new_refresh
-            # 재저장
+            # 재저장 (audience 정보도 유지)
             put_session(
                 sid,
                 access_token=session["access_token"],
@@ -156,6 +161,7 @@ def proxy(event, context):
                 expires_at=session["expires_at"],
                 ua_hash=session["ua_hash"],
                 ip=session.get("ip", ""),
+                audience=audience,
             )
             # 세션 쿠키 재발급(슬라이딩 윈도우)
             cookies_out.append(
