@@ -61,14 +61,14 @@ jobs:
         if: env.STAGE == 'dev'
         run: |
           mkdir -p envs
-          echo '{ "SUPABASE_URL": "${{ secrets.DEV_SUPABASE_URL }}","SUPABASE_API_KEY": "${{ secrets.DEV_SUPABASE_API_KEY }}", "API_GATEWAY_ID": "${{ secrets.DEV_API_GATEWAY_ID }}", "BILL_BUCKET_NAME": "${{ secrets.DEV_BILL_BUCKET_NAME }}", "FCM_SERVICE_ACCOUNT_PATH": "envs/dev-firebase-service-account.json", "FCM_PROJECT_ID": "${{ secrets.DEV_FCM_PROJECT_ID }}", "WEBHOOK_SECRET": "${{ secrets.DEV_WEBHOOK_SECRET }}", "COGNITO_DOMAIN": "${{ secrets.DEV_COGNITO_DOMAIN }}", "COGNITO_CLIENT_ID": "${{ secrets.DEV_COGNITO_CLIENT_ID }}", "CALLBACK_URI": "${{ secrets.DEV_CALLBACK_URI }}", "COOKIE_SECURE": "${{ secrets.DEV_COOKIE_SECURE }}", "SESSION_TABLE": "${{ secrets.DEV_SESSION_TABLE }}", "SESSION_TTL_SECONDS": "${{ secrets.DEV_SESSION_TTL_SECONDS }}", "SESSION_COOKIE_TTL_SECONDS": "${{ secrets.DEV_SESSION_COOKIE_TTL_SECONDS }}", "PERSIST_COOKIE_TTL_SECONDS": "${{ secrets.DEV_PERSIST_COOKIE_TTL_SECONDS }}", "ALLOWED_REDIRECT_ORIGINS": "${{ secrets.DEV_ALLOWED_REDIRECT_ORIGINS }}", "ALLOWED_LOGOUT_URLS": "${{ secrets.DEV_ALLOWED_LOGOUT_URLS }}", "CORS_ORIGINS": [ ${{ secrets.DEV_CORS_ORIGINS }} ] }' > envs/config.dev.json
+          printf %s "${{ secrets.DEV_CONFIG_JSON }}" | base64 --decode > envs/config.dev.json
 
       # 6-2. prod 환경 설정 파일 생성 (이후 실제 PROD DB 연결이 필요함)
       - name: Create PROD environment file
         if: env.STAGE == 'prod'
         run: |
           mkdir -p envs
-          echo '{ "SUPABASE_URL": "${{ secrets.PROD_SUPABASE_URL }}", "SUPABASE_API_KEY": "${{ secrets.PROD_SUPABASE_API_KEY }}", "API_GATEWAY_ID": "${{ secrets.PROD_API_GATEWAY_ID }}", "BILL_BUCKET_NAME": "${{ secrets.PROD_BILL_BUCKET_NAME }}", "FCM_SERVICE_ACCOUNT_PATH": "envs/prod-firebase-service-account.json", "FCM_PROJECT_ID": "${{ secrets.PROD_FCM_PROJECT_ID }}", "WEBHOOK_SECRET": "${{ secrets.PROD_WEBHOOK_SECRET }}", "COGNITO_DOMAIN": "${{ secrets.PROD_COGNITO_DOMAIN }}", "COGNITO_CLIENT_ID": "${{ secrets.PROD_COGNITO_CLIENT_ID }}", "CALLBACK_URI": "${{ secrets.PROD_CALLBACK_URI }}", "COOKIE_SECURE": "${{ secrets.PROD_COOKIE_SECURE }}", "SESSION_TABLE": "${{ secrets.PROD_SESSION_TABLE }}", "SESSION_TTL_SECONDS": "${{ secrets.PROD_SESSION_TTL_SECONDS }}", "SESSION_COOKIE_TTL_SECONDS": "${{ secrets.PROD_SESSION_COOKIE_TTL_SECONDS }}", "PERSIST_COOKIE_TTL_SECONDS": "${{ secrets.PROD_PERSIST_COOKIE_TTL_SECONDS }}", "ALLOWED_REDIRECT_ORIGINS": "${{ secrets.PROD_ALLOWED_REDIRECT_ORIGINS }}", "ALLOWED_LOGOUT_URLS": "${{ secrets.PROD_ALLOWED_LOGOUT_URLS }}", "CORS_ORIGINS": [ ${{ secrets.PROD_CORS_ORIGINS }} ] }' > envs/config.prod.json
+          printf %s "${{ secrets.PROD_CONFIG_JSON }}" | base64 --decode > envs/config.prod.json
 
       # 7. Python Lambda Layer 빌드
       # 우리가 찾은, Docker 없이 Linux 호환 라이브러리를 설치하는 명령어 실행
