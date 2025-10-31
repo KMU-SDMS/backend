@@ -106,7 +106,7 @@ def is_common_user_group(user_info: Dict[str, Any]) -> bool:
     return (
         user_info.get("groups") == "common_user"
         and user_info.get("token_use") == "access"
-    )
+    ) or (user_info.get("groups") == "admin" and user_info.get("token_use") == "access")
 
 
 def is_admin_group(user_info: Dict[str, Any]) -> bool:
