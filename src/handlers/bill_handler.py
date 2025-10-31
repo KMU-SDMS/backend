@@ -3,6 +3,7 @@ import logging
 
 from src.services import bill_service
 from src.utils import responses
+from src.utils.cognito_auth import is_admin_group, is_common_user_group
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -25,6 +26,9 @@ def presign(event, context):
     logger.info("✅ Processing bill presign request")
 
     try:
+        if not is_admin_group(event.get("user_info")):
+            return responses.create_error_response("Unauthorized.", 401)
+
         body = json.loads(event.get("body", "{}"))
         content_type = body.get("contentType", "application/octet-stream")
         file_ext = body.get("ext")
@@ -68,6 +72,9 @@ def get_image(event, context):
     - year: 연도 (필수)
     - month: 월 (필수)
     """
+    if not is_common_user_group(event.get("user_info")):
+        return responses.create_error_response("Unauthorized.", 401)
+
     logger.info("✅ Processing get bill image request")
 
     try:
@@ -77,12 +84,15 @@ def get_image(event, context):
         bill_type = query_params.get("type")
         year = query_params.get("year")
         month = query_params.get("month")
+        access_token = event.get("access_token") or ""
 
         # 필수 파라미터 검증
         if not room_id:
             return responses.create_error_response("roomId is required.", 400)
-        if not bill_type:
-            return responses.create_error_response("type is required.", 400)
+        if not bill_type or bill_type not in ["water", "electricity", "gas"]:
+            return responses.create_error_response(
+                "type is required, must be one of: water, electricity, gas", 400
+            )
         if not year:
             return responses.create_error_response("year is required.", 400)
         if not month:
