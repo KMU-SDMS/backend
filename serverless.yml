@@ -75,17 +75,12 @@ provider:
     SESSION_TTL_SECONDS: ${file(envs/config.${self:provider.stage}.json):SESSION_TTL_SECONDS, 173404800}
     SESSION_COOKIE_TTL_SECONDS: ${file(envs/config.${self:provider.stage}.json):SESSION_COOKIE_TTL_SECONDS, 900}
     PERSIST_COOKIE_TTL_SECONDS: ${file(envs/config.${self:provider.stage}.json):PERSIST_COOKIE_TTL_SECONDS, 172800000}
-    # Admin/User split auth configs
-    ADMIN_COGNITO_DOMAIN: ${file(envs/config.${self:provider.stage}.json):ADMIN_COGNITO_DOMAIN}
-    ADMIN_COGNITO_CLIENT_ID: ${file(envs/config.${self:provider.stage}.json):ADMIN_COGNITO_CLIENT_ID}
-    ADMIN_CALLBACK_URI: ${file(envs/config.${self:provider.stage}.json):ADMIN_CALLBACK_URI}
-    ADMIN_ALLOWED_REDIRECT_ORIGINS: ${file(envs/config.${self:provider.stage}.json):ADMIN_ALLOWED_REDIRECT_ORIGINS}
-    ADMIN_ALLOWED_LOGOUT_URLS: ${file(envs/config.${self:provider.stage}.json):ADMIN_ALLOWED_LOGOUT_URLS}
-    USER_COGNITO_DOMAIN: ${file(envs/config.${self:provider.stage}.json):USER_COGNITO_DOMAIN}
-    USER_COGNITO_CLIENT_ID: ${file(envs/config.${self:provider.stage}.json):USER_COGNITO_CLIENT_ID}
-    USER_CALLBACK_URI: ${file(envs/config.${self:provider.stage}.json):USER_CALLBACK_URI}
-    USER_ALLOWED_REDIRECT_ORIGINS: ${file(envs/config.${self:provider.stage}.json):USER_ALLOWED_REDIRECT_ORIGINS}
-    USER_ALLOWED_LOGOUT_URLS: ${file(envs/config.${self:provider.stage}.json):USER_ALLOWED_LOGOUT_URLS}
+    COGNITO_DOMAIN: ${file(envs/config.${self:provider.stage}.json):COGNITO_DOMAIN}
+    COGNITO_CLIENT_ID: ${file(envs/config.${self:provider.stage}.json):COGNITO_CLIENT_ID}
+    CALLBACK_URI: ${file(envs/config.${self:provider.stage}.json):CALLBACK_URI}
+    COOKIE_DOMAIN: ${file(envs/config.${self:provider.stage}.json):COOKIE_DOMAIN, ''}
+    ALLOWED_REDIRECT_ORIGINS: ${file(envs/config.${self:provider.stage}.json):ALLOWED_REDIRECT_ORIGINS}
+    ALLOWED_LOGOUT_URLS: ${file(envs/config.${self:provider.stage}.json):ALLOWED_LOGOUT_URLS}
 
 layers:
   AppDependencies:
@@ -155,66 +150,6 @@ functions:
       - httpApi:
           method: get
           path: /auth/login
-
-  authAdminLogin:
-    name: ${self:provider.stage}-auth-admin-Login
-    handler: src.handlers.bff_auth_handler.admin_login
-    layers:
-      - { Ref: AppDependenciesLambdaLayer }
-    events:
-      - httpApi:
-          method: get
-          path: /auth/admin/login
-
-  authAdminCallback:
-    name: ${self:provider.stage}-auth-admin-Callback
-    handler: src.handlers.bff_auth_handler.admin_callback
-    layers:
-      - { Ref: AppDependenciesLambdaLayer }
-    events:
-      - httpApi:
-          method: get
-          path: /auth/admin/callback
-
-  authAdminLogout:
-    name: ${self:provider.stage}-auth-admin-Logout
-    handler: src.handlers.bff_auth_handler.admin_logout
-    layers:
-      - { Ref: AppDependenciesLambdaLayer }
-    events:
-      - httpApi:
-          method: get
-          path: /auth/admin/logout
-
-  authUserLogin:
-    name: ${self:provider.stage}-auth-user-Login
-    handler: src.handlers.bff_auth_handler.user_login
-    layers:
-      - { Ref: AppDependenciesLambdaLayer }
-    events:
-      - httpApi:
-          method: get
-          path: /auth/user/login
-
-  authUserCallback:
-    name: ${self:provider.stage}-auth-user-Callback
-    handler: src.handlers.bff_auth_handler.user_callback
-    layers:
-      - { Ref: AppDependenciesLambdaLayer }
-    events:
-      - httpApi:
-          method: get
-          path: /auth/user/callback
-
-  authUserLogout:
-    name: ${self:provider.stage}-auth-user-Logout
-    handler: src.handlers.bff_auth_handler.user_logout
-    layers:
-      - { Ref: AppDependenciesLambdaLayer }
-    events:
-      - httpApi:
-          method: get
-          path: /auth/user/logout
 
   bffProxy:
     name: ${self:provider.stage}-bff-Proxy
