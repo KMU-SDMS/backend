@@ -87,11 +87,6 @@ def get_bill_image(
     try:
         bucket, allowed, expires, key_prefix, allow_origin = _load_env()
 
-        # Validate bill_type
-        valid_types = {"water", "electricity", "gas"}
-        if bill_type not in valid_types:
-            return None, f"Invalid bill type. Must be one of: {', '.join(valid_types)}"
-
         # S3 prefix 생성: bills/{year}/{month}/{room_id}/{bill_type} (파일명으로 사용)
         prefix = f"{key_prefix}/{year}/{month}/{room_id}/{bill_type}"
 

@@ -15,6 +15,7 @@ from src.utils.session_store import (
     build_user_agent_ip_hash,
 )
 from src.utils.routing import resolve_handler
+from src.utils.cognito_auth import get_cognito_groups, get_user_info
 
 
 COOKIE_SECURE = os.environ.get("COOKIE_SECURE", "true").lower() == "true"
@@ -130,6 +131,7 @@ def proxy(event, context):
     now = int(time.time())
     expires_at = int(session.get("expires_at", now))
     refresh_token = session.get("refresh_token") or ""
+    access_token = session.get("access_token") or ""
     if now >= expires_at and refresh_token:
 
         def _fp(token: str) -> str:
@@ -190,12 +192,24 @@ def proxy(event, context):
             )[1]
         )
 
+    # 내부 핸들러 연결 전, 토큰/그룹 컨텍스트 주입
+    try:
+        groups = get_cognito_groups(access_token) if access_token else []
+        user_info = get_user_info(access_token) if access_token else {}
+        event["access_token"] = access_token
+        event["cognito_groups"] = groups
+        event["user_info"] = user_info
+    except Exception:
+        # 주입 실패는 요청 차단 사유가 아님
+        event["access_token"] = access_token
+        event["cognito_groups"] = []
+        event["user_info"] = {}
+
     # 내부 핸들러 연결
     path = (event.get("rawPath") or event.get("path") or "").rstrip("/")
     handler, extra = _resolve_handler(path, method)
     if not handler:
         return _build_response(404, {"message": "Not Found"})
-
     # 기존 핸들러 시그니처 유지: (event, context)
     try:
         result = handler(event, context)
