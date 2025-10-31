@@ -104,10 +104,10 @@ def get_user_info(access_token: str) -> Dict[str, Any]:
 
 def is_common_user_group(user_info: Dict[str, Any]) -> bool:
     return (
-        user_info.get("groups") == "common_user"
+        "common_user" in user_info.get("groups")
         and user_info.get("token_use") == "access"
-    ) or (user_info.get("groups") == "admin" and user_info.get("token_use") == "access")
+    ) or ("admin" in user_info.get("groups") and user_info.get("token_use") == "access")
 
 
 def is_admin_group(user_info: Dict[str, Any]) -> bool:
-    return user_info.get("groups") == "admin" and user_info.get("token_use") == "access"
+    return "admin" in user_info.get("groups") and user_info.get("token_use") == "access"
