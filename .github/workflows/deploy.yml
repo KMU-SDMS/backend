@@ -71,7 +71,6 @@ jobs:
           printf %s "${{ secrets.PROD_CONFIG_JSON }}" | base64 --decode > envs/config.prod.json
 
       # 7. Python Lambda Layer 빌드
-      # 우리가 찾은, Docker 없이 Linux 호환 라이브러리를 설치하는 명령어 실행
       - name: Build Python Layer
         run: |
           python3 -m pip install --upgrade pip

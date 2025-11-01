@@ -17,10 +17,6 @@ SESSION_TTL_SECONDS = int(
 )
 COGNITO_DOMAIN = os.environ.get("COGNITO_DOMAIN", "").rstrip("/")
 COGNITO_CLIENT_ID = os.environ.get("COGNITO_CLIENT_ID", "")
-ADMIN_COGNITO_DOMAIN = os.environ.get("ADMIN_COGNITO_DOMAIN", "").rstrip("/")
-ADMIN_COGNITO_CLIENT_ID = os.environ.get("ADMIN_COGNITO_CLIENT_ID", "")
-USER_COGNITO_DOMAIN = os.environ.get("USER_COGNITO_DOMAIN", "").rstrip("/")
-USER_COGNITO_CLIENT_ID = os.environ.get("USER_COGNITO_CLIENT_ID", "")
 
 
 _dynamodb = boto3.resource("dynamodb")
@@ -44,7 +40,6 @@ def put_session(
     expires_at: int,
     ua_hash: str,
     ip: str,
-    audience: Optional[str] = None,
 ) -> None:
     if not _table:
         raise RuntimeError("SESSION_TABLE not configured")
@@ -59,8 +54,6 @@ def put_session(
         "created_at": _now_epoch(),
         "ttl": ttl,
     }
-    if audience:
-        item["audience"] = audience
     _table.put_item(Item=item)
 
 
@@ -123,61 +116,13 @@ def refresh_access_token(
     return access_token, expires_in, new_refresh
 
 
-def _get_cfg_for_audience(audience: Optional[str]) -> Optional[Tuple[str, str]]:
-    aud = (audience or "").lower()
-    if aud == "admin":
-        domain = ADMIN_COGNITO_DOMAIN
-        client_id = ADMIN_COGNITO_CLIENT_ID
-    elif aud == "user":
-        domain = USER_COGNITO_DOMAIN
-        client_id = USER_COGNITO_CLIENT_ID
-    else:
-        # unknown audience → fallback to global if configured
-        domain = COGNITO_DOMAIN
-        client_id = COGNITO_CLIENT_ID
-    if not (domain and client_id):
-        return None
-    return domain, client_id
-
-
-def refresh_access_token_for(
-    audience: Optional[str], refresh_token: str
-) -> Optional[Tuple[str, int, Optional[str]]]:
-    cfg = _get_cfg_for_audience(audience)
-    if not cfg:
-        return None
-    domain, client_id = cfg
-    token_url = f"{domain}/oauth2/token"
-    form = {
-        "grant_type": "refresh_token",
-        "client_id": client_id,
-        "refresh_token": refresh_token,
-    }
-    data = urllib.parse.urlencode(form).encode("utf-8")
-    headers = {"Content-Type": "application/x-www-form-urlencoded"}
-    req = urllib.request.Request(token_url, data=data, headers=headers)
-    try:
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            body = json.loads(resp.read().decode("utf-8"))
-    except Exception:
-        return None
-    access_token = body.get("access_token")
-    expires_in = int(body.get("expires_in", 3600))
-    new_refresh = body.get("refresh_token")
-    if not access_token:
-        return None
-    return access_token, expires_in, new_refresh
-
-
 def base64_encode(data: bytes) -> str:
     import base64
 
     return base64.b64encode(data).decode("utf-8")
 
 
-def validate_session_security(
-    existing_sid, headers_in, request_context, audience: Optional[str] = None
-):
+def validate_session_security(existing_sid, headers_in, request_context):
     """완전한 세션 보안 검증"""
 
     session_data = get_session(existing_sid)
@@ -219,11 +164,7 @@ def validate_session_security(
     if expires_at - current_time < token_refresh_threshold:
         refresh_token = session_data.get("refresh_token")
         if refresh_token:
-            # 세션에 기록된 audience가 있으면 우선 사용, 없으면 호출자 힌트 사용
-            effective_audience = session_data.get("audience") or audience
-            refresh_result = refresh_access_token_for(
-                effective_audience, refresh_token
-            ) or refresh_access_token(refresh_token)
+            refresh_result = refresh_access_token(refresh_token)
 
             if refresh_result:
                 new_access_token, expires_in, new_refresh_token = refresh_result
@@ -237,7 +178,6 @@ def validate_session_security(
                     expires_at=new_expires_at,
                     ua_hash=stored_ua_hash,  # 기존 해시 유지
                     ip=session_data.get("ip", ""),
-                    audience=effective_audience,
                 )
 
                 print(f"[login] Token refreshed successfully")
