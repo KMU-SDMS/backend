@@ -246,7 +246,9 @@ paths:
   /api/notices:
     get:
       summary: 공지사항 목록 조회 (페이지네이션)
-      description: 페이지네이션을 통해 공지사항 목록을 조회합니다. 페이지당 10개의 공지사항을 반환합니다.
+      description: |
+        페이지네이션을 통해 공지사항 목록을 조회합니다. 페이지당 10개의 공지사항을 반환합니다.
+        기본적으로 PUBLISHED 상태의 공지사항만 반환됩니다.
       tags:
         - Notices
       parameters:
@@ -265,9 +267,127 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/Notice"
+                type: object
+                properties:
+                  notices:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Notice"
+                  page_info:
+                    $ref: "#/components/schemas/PageInfo"
+        "500":
+          description: 서버 내부 오류
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/notices/filter:
+    get:
+      summary: 공지사항 필터링 및 정렬 조회
+      description: 다양한 조건으로 공지사항을 필터링하고 정렬하여 페이지네이션으로 조회합니다.
+      tags:
+        - Notices
+      parameters:
+        - name: status
+          in: query
+          description: |
+            공지사항 상태 (여러 개 선택 가능)
+            - 여러 개 선택 방법 1: 같은 파라미터를 여러 번 사용 (?status=DRAFT&status=SCHEDULED)
+            - 여러 개 선택 방법 2 (스웨거에서 불가): 쉼표로 구분 (?status=DRAFT,SCHEDULED)
+          required: false
+          schema:
+            type: array
+            items:
+              type: string
+              enum: [DRAFT, SCHEDULED, PUBLISHED]
+          style: form
+          explode: true
+          allowEmptyValue: false
+          examples:
+            single:
+              summary: 단일 상태
+              value: PUBLISHED
+            multiple_repeated:
+              summary: 여러 상태 (반복 파라미터)
+              value:
+                - DRAFT
+                - SCHEDULED
+        - name: is_important
+          in: query
+          description: 중요 공지 여부
+          required: false
+          schema:
+            type: boolean
+          example: true
+        - name: start_date
+          in: query
+          description: 검색 시작일 (YYYY-MM-DD)
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: end_date
+          in: query
+          description: 검색 종료일 (YYYY-MM-DD)
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: year
+          in: query
+          description: 특정 연도
+          required: false
+          schema:
+            type: integer
+        - name: month
+          in: query
+          description: 특정 월
+          required: false
+          schema:
+            type: integer
+        - name: day
+          in: query
+          description: 특정 일
+          required: false
+          schema:
+            type: integer
+        - name: sort
+          in: query
+          description: 정렬 순서
+          required: false
+          schema:
+            type: string
+            enum: [latest, oldest]
+            default: "latest"
+        - name: page
+          in: query
+          description: 페이지 번호
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+      responses:
+        "200":
+          description: 성공적으로 필터링된 공지사항 목록을 반환했습니다.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  notices:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Notice"
+                  page_info:
+                    $ref: "#/components/schemas/PageInfo"
+        "400":
+          description: 잘못된 요청 (유효하지 않은 파라미터)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
         "500":
           description: 서버 내부 오류
           content:
@@ -1090,6 +1210,11 @@ components:
           type: boolean
           description: 중요 공지 여부
           example: true
+        status:
+          type: string
+          description: 게시 상태
+          enum: [DRAFT, SCHEDULED, PUBLISHED]
+          example: "PUBLISHED"
 
     NoticeCreateRequest:
       type: object
@@ -1111,6 +1236,12 @@ components:
           description: 중요 공지 여부
           default: false
           example: true
+        status:
+          type: string
+          description: 게시 상태
+          enum: [DRAFT, SCHEDULED, PUBLISHED]
+          default: "PUBLISHED"
+          example: "PUBLISHED"
 
     Calendar:
       type: object
@@ -1197,6 +1328,23 @@ components:
           type: string
           description: 에러 메시지
           example: "Invalid request parameters"
+
+    PageInfo:
+      type: object
+      description: 페이지 정보
+      properties:
+        total_page:
+          type: integer
+          description: 전체 페이지 수
+          example: 10
+        total_notice:
+          type: integer
+          description: 전체 공지사항 수
+          example: 95
+        now_page:
+          type: integer
+          description: 현재 페이지 번호
+          example: 1
 
     Subscription:
       type: object
