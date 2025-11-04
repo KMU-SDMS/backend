@@ -321,6 +321,9 @@ def filter(event, context):
         except ValueError:
             return responses.create_error_response("Invalid page number format.", 400)
 
+        # 검색어 파라미터 추출
+        search_term = query_params.get("search")
+
         # DTO 생성 및 검증
         filter_dto = NoticeFilterRequestDTO(
             status=status,
@@ -332,6 +335,7 @@ def filter(event, context):
             day=day,
             sort=sort,
             page=page,
+            search=search_term,
         )
 
         is_valid, error_message = filter_dto.validate()
@@ -350,6 +354,7 @@ def filter(event, context):
                 day=filter_dto.day,
                 sort=filter_dto.sort,
                 page=filter_dto.page,
+                search=filter_dto.search,
             )
         )
 

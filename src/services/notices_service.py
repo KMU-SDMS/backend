@@ -252,9 +252,10 @@ def get_notices_with_filters(
     day: Optional[int] = None,
     sort: str = "latest",
     page: int = 1,
+    search: Optional[str] = None,
 ):
     """
-    Supabase 클라이언트를 사용하여 필터링된 공지사항을 가져옵니다.
+    Supabase 클라이언트를 사용하여 필터링 및 검색된 공지사항을 가져옵니다.
     페이지당 10개의 공지사항을 반환합니다.
 
     Returns:
@@ -282,6 +283,15 @@ def get_notices_with_filters(
                 "id, title, content, created_at, is_important, status", count="exact"
             )
         )
+
+        # 검색 필터링 (title 또는 content에 검색어 포함)
+        if search:
+            # ILIKE를 사용한 부분 문자열 검색 (대소문자 무시)
+            search_pattern = f"%{search}%"
+            query = query.or_(
+                f"title.ilike.{search_pattern},content.ilike.{search_pattern}"
+            )
+            logger.info(f"검색어 적용: {search}")
 
         # status 필터링 (여러 개 선택 가능, OR 조건)
         if status is not None and len(status) > 0:
