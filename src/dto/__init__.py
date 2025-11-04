@@ -8,6 +8,7 @@ from .notice_dto import (
     NoticeDeleteRequestDTO,
     NoticeUpdateRequestDTO,
     NoticeListWithPageInfoDTO,
+    NoticeFilterRequestDTO,
 )
 from .student_dto import (
     StudentDTO,
@@ -39,6 +40,7 @@ __all__ = [
     "NoticeDeleteRequestDTO",
     "NoticeUpdateRequestDTO",
     "NoticeListWithPageInfoDTO",
+    "NoticeFilterRequestDTO",
     "StudentDTO",
     "StudentListDTO",
     "StudentCreateRequestDTO",
