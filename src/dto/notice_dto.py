@@ -159,6 +159,7 @@ class NoticeFilterRequestDTO(BaseDTO):
     day: Optional[int] = None
     sort: str = "latest"
     page: int = 1
+    search: Optional[str] = None
 
     def validate(self) -> tuple[bool, Optional[str]]:
         """요청 데이터 검증"""
