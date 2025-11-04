@@ -368,6 +368,13 @@ paths:
             type: integer
             minimum: 1
             default: 1
+        - name: search
+          in: query
+          description: 검색어 (제목 또는 내용에서 검색)
+          required: false
+          schema:
+            type: string
+          example: "장학금"
       responses:
         "200":
           description: 성공적으로 필터링된 공지사항 목록을 반환했습니다.
