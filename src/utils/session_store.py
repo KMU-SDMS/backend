@@ -28,7 +28,9 @@ def _now_epoch() -> int:
 
 
 def build_user_agent_ip_hash(user_agent: str, ip: str) -> str:
-    base = (user_agent or "") + "|" + (ip or "")
+    # IP 주소는 모바일 환경 등에서 자주 바뀌므로 세션 해시에서 제외합니다.
+    # User-Agent만 검증하여 동일 브라우저에서 요청이 왔는지 확인합니다.
+    base = user_agent or ""
     return hashlib.sha256(base.encode("utf-8")).hexdigest()
 
 
