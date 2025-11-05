@@ -12,7 +12,7 @@ from typing import Dict
 from src.utils.session_store import (
     put_session,
     delete_session,
-    build_user_agent_ip_hash,
+    build_user_agent_hash,
     validate_session_security,
 )
 
@@ -298,8 +298,8 @@ def callback(event, context):
     sid = _base64url_encode(secrets.token_bytes(24))
 
     ua = headers_in.get("user-agent", "")
-    ip = (event.get("requestContext") or {}).get("http", {}).get("sourceIp", "")
-    ua_hash = build_user_agent_ip_hash(ua, ip)
+    # ip = (event.get("requestContext") or {}).get("http", {}).get("sourceIp", "")
+    ua_hash = build_user_agent_hash(ua)
 
     expires_at = int(time.time()) + expires_in
     put_session(
@@ -308,7 +308,7 @@ def callback(event, context):
         refresh_token=refresh_token,
         expires_at=expires_at,
         ua_hash=ua_hash,
-        ip=ip,
+        # ip=ip,
     )
 
     set_cookie_headers: list[tuple[str, str]] = []
