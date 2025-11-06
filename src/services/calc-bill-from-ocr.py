@@ -97,14 +97,15 @@ def process_bill_image(bucket_name: str, object_key: str) -> bool:
         path_info = parse_s3_path(object_key)
 
         year, month, room_id, bill_type = path_info
-
         # S3에서 이미지 바이트 가져오기 + 리사이즈
         obj = s3_client.get_object(Bucket=bucket_name, Key=object_key)
         image_bytes = obj["Body"].read()
         image = Image.open(BytesIO(image_bytes)).convert("RGB")
         original_size = image.size
         image = resize_image(image)
-        if image.size != original_size:
+
+        # 이미지 리사이즈 후 저장
+        if image.size[0] * image.size[1] < original_size[0] * original_size[1]:
             _ = save_image_to_s3(
                 image=image,
                 bucket=bucket_name,
@@ -115,26 +116,11 @@ def process_bill_image(bucket_name: str, object_key: str) -> bool:
         np_img = np.array(image)
 
         # PaddleOCR로 OCR 수행
-        ocr_result = perform_ocr(np_img)
+        ocr_json = perform_ocr(np_img)
 
-        if not ocr_result:
-            print(f"❌ OCR failed for {object_key}")
-            return False
-
-        print(f"OCR 처리 완료: {object_key}")
-
-        # 청구금액 파싱 결과 확인
-        bill_amount = ocr_result.get("bill_amount")
-        if bill_amount:
-            print(
-                f"✅ 청구금액 파싱 성공: {bill_amount['amount']}원 (신뢰도: {bill_amount['confidence']:.2f})"
-            )
-            print(f"   주변 텍스트: {bill_amount['context']}")
-        else:
-            print("⚠️ 청구금액을 자동으로 파싱하지 못했습니다")
-
-        # OCR 결과에서 관리비 정보 추출 (기존 방식도 유지)
-        # bill_data = extract_bill_data(ocr_result, bill_type)
+        # 청구금액 파싱
+        bill_amount = parse_bill_amount_from_ocr_data(ocr_json, bill_type)
+        bank_info = extract_bank_info(ocr_json.get("rec_texts", []))
 
         # # 결과 저장
         # save_result = save_ocr_result(
@@ -177,20 +163,10 @@ def parse_s3_path(object_key: str) -> Optional[Tuple[str, str, str, str]]:
             filename = parts[4]
 
             # 파일명에서 확장자 제거 후 구분자(공백/+/_/ -)로 분리하여 마지막 토큰을 타입으로 사용
-            name_wo_ext = os.path.splitext(filename)[0]
-            tokens = re.split(r"[\s+_\-]+", name_wo_ext.strip())
-            bill_type = tokens[-1].lower() if tokens else ""
+            name_wo_ext = filename.split(".")[0]
+            bill_type = name_wo_ext.lower()
 
-            # 기본 검증 (year, month 숫자 형식 확인)
-            if (
-                len(year) == 4
-                and year.isdigit()
-                and len(month) == 2
-                and month.isdigit()
-                and room_id
-                and bill_type
-            ):
-                return year, month, room_id, bill_type
+            return year, month, room_id, bill_type
 
         return None
 
@@ -285,43 +261,42 @@ def save_image_to_s3(
         return False
 
 
-def find_nearby_texts(target_box, all_boxes, all_texts, threshold=100):
+def find_nearby_amount(target_boxs, bill_keyword_box, threshold=100):
     """
-    주변 텍스트들을 찾는 함수
+    총 관리비 키워드 주변 금액을 찾는 함수
 
     Args:
         target_box: 대상 텍스트의 박스 좌표 [x1, y1, x2, y2]
         all_boxes: 모든 텍스트 박스들의 좌표 리스트
         all_texts: 모든 텍스트들의 리스트
         threshold: 거리 임계값 (픽셀)
-
     Returns:
         List[Tuple[str, float]]: (텍스트, 거리) 튜플들의 리스트
     """
-    target_center_x = (target_box[0] + target_box[2]) / 2
-    target_center_y = (target_box[1] + target_box[3]) / 2
 
-    nearby_texts = []
-    for i, box in enumerate(all_boxes):
-        if box == target_box:  # 자기 자신 제외
-            continue
+    bill_keyword_center_x = (bill_keyword_box[0] + bill_keyword_box[2]) / 2
+    bill_keyword_center_y = (bill_keyword_box[1] + bill_keyword_box[3]) / 2
 
-        center_x = (box[0] + box[2]) / 2
-        center_y = (box[1] + box[3]) / 2
+    nearest_distance = 1e9
+    nearest_amount = None
+
+    for target_box in target_boxs:
+        target_center_x = (target_box.get("box")[0] + target_box.get("box")[2]) / 2
+        target_center_y = (target_box.get("box")[1] + target_box.get("box")[3]) / 2
 
         distance = (
-            (center_x - target_center_x) ** 2 + (center_y - target_center_y) ** 2
+            (bill_keyword_center_x - target_center_x) ** 2
+            + (bill_keyword_center_y - target_center_y) ** 2
         ) ** 0.5
 
-        if distance <= threshold:
-            nearby_texts.append((all_texts[i], distance))
+        if distance <= nearest_distance:
+            nearest_distance = distance
+            nearest_amount = target_box.get("amount")
 
-    # 거리순으로 정렬
-    nearby_texts.sort(key=lambda x: x[1])
-    return nearby_texts
+    return nearest_amount
 
 
-def parse_bill_amount_from_ocr_data(json_data):
+def parse_bill_amount_from_ocr_data(json_data, bill_type: str):
     """
     OCR 데이터에서 청구금액을 파싱하는 함수
 
@@ -329,7 +304,7 @@ def parse_bill_amount_from_ocr_data(json_data):
         json_data: OCR 결과 JSON 데이터
 
     Returns:
-        Dict: {"amount": int, "confidence": float, "context": str}
+        int: 청구금액
     """
     try:
         rec_texts = json_data.get("rec_texts", [])
@@ -343,16 +318,25 @@ def parse_bill_amount_from_ocr_data(json_data):
         amount_pattern = re.compile(r"^\d{1,3}(?:,\d{3})*$")
 
         # 청구금액 관련 키워드와 점수
-        bill_keywords = {
-            "청구금액": 100,
-            "납부금액": 90,
-            "총금액": 80,
-            "당월요금": 85,
-            "청구": 60,
-            "납부": 50,
-            "금액": 40,
-            "요금": 30,
-        }
+        bill_keywords = ""
+
+        if bill_type == "electricity":
+            bill_keywords = "청구요금"
+        elif bill_type == "water":
+            bill_keywords = "합계"
+        elif bill_type == "gas":
+            bill_keywords = "금액"
+
+        # 청구금액 키워드 박스 찾기
+        bill_keyword_box = None
+        for i, text in enumerate(rec_texts):
+            if text == bill_keywords:
+                bill_keyword_box = rec_boxes[i]
+                break
+
+        if bill_keyword_box is None:
+            logger.info("💰 청구금액 키워드를 찾을 수 없음")
+            return None
 
         amount_candidates = []
 
@@ -381,82 +365,18 @@ def parse_bill_amount_from_ocr_data(json_data):
             logger.info("💰 금액 후보를 찾을 수 없음")
             return None
 
-        # 2. 각 금액 후보에 대해 주변 텍스트 분석
-        best_candidate = None
-        best_score = 0
-
-        for candidate in amount_candidates:
-            # 주변 텍스트 찾기 (거리 임계값 150px)
-            nearby_texts = find_nearby_texts(
-                candidate["box"], rec_boxes, rec_texts, threshold=150
-            )
-
-            # 키워드 매칭으로 점수 계산
-            score = 0
-            context_texts = []
-
-            for nearby_text, distance in nearby_texts:
-                nearby_clean = nearby_text.strip().lower()
-                context_texts.append(nearby_text)
-
-                # 키워드 매칭
-                for keyword, keyword_score in bill_keywords.items():
-                    if keyword in nearby_clean:
-                        # 거리가 가까울수록 높은 점수 (최대 거리 150px 기준)
-                        distance_factor = max(0, (150 - distance) / 150)
-                        score += keyword_score * distance_factor
-                        logger.info(
-                            f"💰 키워드 '{keyword}' 발견 (거리: {distance:.1f}px, 점수: {keyword_score * distance_factor:.1f})"
-                        )
-
-            # 같은 줄에 있는 텍스트에 추가 점수 (y좌표 차이가 20px 이내)
-            candidate_center_y = (candidate["box"][1] + candidate["box"][3]) / 2
-            for nearby_text, distance in nearby_texts:
-                if distance <= 50:  # 매우 가까운 텍스트
-                    nearby_box_idx = None
-                    for j, box in enumerate(rec_boxes):
-                        if rec_texts[j] == nearby_text:
-                            nearby_box_idx = j
-                            break
-
-                    if nearby_box_idx is not None:
-                        nearby_center_y = (
-                            rec_boxes[nearby_box_idx][1] + rec_boxes[nearby_box_idx][3]
-                        ) / 2
-                        if abs(candidate_center_y - nearby_center_y) <= 20:
-                            score += 20  # 같은 줄 보너스
-
-            logger.info(f"💰 금액 후보: {candidate['text']} (점수: {score:.1f})")
-
-            if score > best_score:
-                best_score = score
-                best_candidate = candidate
-                best_candidate["context"] = " ".join(
-                    context_texts[:5]
-                )  # 상위 5개 주변 텍스트
-                best_candidate["confidence"] = min(
-                    score / 100, 1.0
-                )  # 0~1 사이로 정규화
-
-        if best_candidate and best_score > 30:  # 최소 점수 임계값
-            logger.info(
-                f"💰 청구금액 파싱 성공: {best_candidate['amount']}원 (신뢰도: {best_candidate['confidence']:.2f})"
-            )
-            return {
-                "amount": best_candidate["amount"],
-                "confidence": best_candidate["confidence"],
-                "context": best_candidate["context"],
-            }
-        else:
-            logger.warning(f"⚠️ 청구금액 파싱 실패 - 최고 점수: {best_score}")
-            return None
+        # 주변 텍스트 찾기 (거리 임계값 150px)
+        nearest_amount = find_nearby_amount(
+            amount_candidates, bill_keyword_box, threshold=150
+        )
+        return nearest_amount
 
     except Exception as e:
         logger.error(f"❌ 청구금액 파싱 중 오류: {str(e)}")
         return None
 
 
-def perform_ocr(np_img: np.ndarray) -> Optional[Dict[str, Any]]:
+def perform_ocr(np_img: np.ndarray) -> dict:
     """
     PaddleOCR로 텍스트 라인 OCR을 수행합니다 (angle 미사용, 구조 인식 OFF).
 
@@ -467,29 +387,18 @@ def perform_ocr(np_img: np.ndarray) -> Optional[Dict[str, Any]]:
     """
     try:
 
-        # result = PaddleOCR(
-        #     use_doc_orientation_classify=False,  # 이미지 방향
-        #     use_doc_unwarping=False,  # 글자 기울기 보정
-        #     use_textline_orientation=False,  # 글자 방향 보정
-        #     text_detection_model_name="PP-OCRv5_server_det",
-        #     text_recognition_model_name="korean_PP-OCRv5_mobile_rec",
-        # ).predict(np_img)
+        result = PaddleOCR(
+            use_doc_orientation_classify=False,  # 이미지 방향
+            use_doc_unwarping=False,  # 글자 기울기 보정
+            use_textline_orientation=False,  # 글자 방향 보정
+            text_detection_model_name="PP-OCRv5_server_det",
+            text_recognition_model_name="korean_PP-OCRv5_mobile_rec",
+        ).predict(np_img)
 
-        # result[0].save_to_json("./test.json")
-        content = json.load(open("./test.json"))
+        result[0].save_to_json("./test.json")
+        content_json = json.load(open("./test.json"))
 
-        # 청구금액 파싱
-        bill_amount = parse_bill_amount_from_ocr_data(content)
-
-        print(f"OCR 결과: {len(content.get('rec_texts', []))}개 텍스트 인식")
-        if bill_amount:
-            print(
-                f"청구금액: {bill_amount['amount']}원 (신뢰도: {bill_amount['confidence']:.2f})"
-            )
-        else:
-            print("청구금액을 찾을 수 없음")
-
-        return {"text": content, "bill_amount": bill_amount}
+        return content_json
     except Exception as e:
         logger.error(f"❌ OCR failed (PaddleOCR): {str(e)}")
         return None
@@ -627,9 +536,11 @@ def save_ocr_result(
             else None
         )
         if not bank_name or not bank_number:
-            bn, bname = extract_bank_info(ocr_text)
-            bank_number = bank_number or bn
-            bank_name = bank_name or bname
+            # OCR 텍스트가 문자열인 경우 리스트로 변환
+            ocr_texts = [ocr_text] if isinstance(ocr_text, str) else ocr_text
+            bank_info = extract_bank_info(ocr_texts)
+            bank_number = bank_number or bank_info.get("bank_number")
+            bank_name = bank_name or bank_info.get("bank_name")
 
         # 날짜 생성 (year-month 형태)
         bill_date = f"{year}-{month.zfill(2)}-01"  # 월의 첫날로 설정
@@ -662,54 +573,36 @@ def save_ocr_result(
         return False
 
 
-def extract_bank_info(ocr_text: str) -> Tuple[Optional[str], Optional[str]]:
+def extract_bank_info(ocr_texts: list) -> list[dict[str, Optional[str]]]:
     """
-    OCR 텍스트에서 계좌번호와 은행명을 추출합니다.
+    OCR 텍스트 리스트에서 "은행명 + 계좌번호" 패턴을 찾아 분리합니다.
 
     Args:
-        ocr_text: OCR로 추출된 텍스트
+        ocr_texts: OCR로 추출된 텍스트들의 리스트
 
     Returns:
-        Tuple[bank_number, bank_name]: 계좌번호와 은행명
+        Dict: {"bank_name": str, "bank_number": str} 또는 {"bank_name": None, "bank_number": None}
     """
     try:
-        print(f"🏦 Extracting bank info from OCR text: {ocr_text}")
-        bank_number = None
-        bank_name = None
 
-        # 계좌번호 패턴 (예: 123-456-789012, 1234-56-789012)
-        account_patterns = [
-            r"(\d{3,4}-\d{2,6}-\d{6,12})",  # 일반적인 계좌번호 형태
-            r"(\d{10,14})",  # 숫자만 있는 계좌번호
-        ]
+        result = []
+        # 은행명과 계좌번호가 함께 있는 패턴들
+        # 패턴: 은행명 + 공백/콜론/기타구분자 + 계좌번호
+        bank_account_pattern = r"(국민|신한|우리|하나|기업|농협|새마을금고|신협|우체국|카카오뱅크|토스뱅크|경남|부산|대구|광주|전북|제주|산업|KB|NH|KEB|Woori|Hana|IBK|SC제일|씨티|iM뱅크)\s*(\d[\d\-]*)"
 
-        for pattern in account_patterns:
-            matches = re.findall(pattern, ocr_text)
+        # OCR 텍스트들을 순회하면서 은행명+계좌번호 패턴 찾기
+        for ocr_text in ocr_texts:
+            text_clean = str(ocr_text).strip()
+
+            matches = re.findall(bank_account_pattern, text_clean)
             if matches:
-                bank_number = matches[0]
-                break
+                bank_name, bank_number = matches[0]
+                result.append({"bank_name": bank_name, "bank_number": bank_number})
 
-        # 은행명 패턴
-        bank_patterns = [
-            r"(국민은행|신한은행|우리은행|하나은행|기업은행|농협|새마을금고|신협|우체국|카카오뱅크|토스뱅크)",
-            r"(KB|NH|KEB|Woori|Hana|IBK)",
-        ]
-
-        for pattern in bank_patterns:
-            matches = re.findall(pattern, ocr_text)
-            if matches:
-                bank_name = matches[0]
-                break
-
-        logger.info(
-            f"🏦 Extracted bank info - Number: {bank_number}, Name: {bank_name}"
-        )
-
-        return bank_number, bank_name
-
+        return result
     except Exception as e:
         logger.error(f"❌ Bank info extraction failed: {str(e)}")
-        return None, None
+        return {"bank_name": None, "bank_number": None}
 
 
 # 테스트용 로컬 실행
@@ -721,13 +614,13 @@ if __name__ == "__main__":
                 "eventVersion": "2.1",
                 "eventSource": "aws:s3",
                 "awsRegion": "ap-northeast-2",
-                "eventTime": "2025-11-05T00:12:01.414Z",
+                "eventTime": "2025-11-05T07:05:46.912Z",
                 "eventName": "ObjectCreated:Put",
                 "userIdentity": {"principalId": "A1GXL1V1X4D2UB"},
                 "requestParameters": {"sourceIPAddress": "1.209.174.122"},
                 "responseElements": {
-                    "x-amz-request-id": "6F2XG69B0CA0RTRA",
-                    "x-amz-id-2": "ctzBkhDOjhP023D2doXS9UXv9rzkm6cpvkfgm9gh1ngE4D9Ce5+zg++BZievHstm84TbFALZHD1xHqWTzo4sAOiA7pd9gDK9TgBVWYy4utM=",
+                    "x-amz-request-id": "97EFHE215Q1451GJ",
+                    "x-amz-id-2": "vag3kD+WVH4hHxd8IEgcB3horoMFx1pXXbYd6cpPpbpINnDo8KxFS8wtGHs7NPn4YcpqihZ6D7+4i1D42FLouXmsQ0SgbBAf0wrFSSSBocI=",
                 },
                 "s3": {
                     "s3SchemaVersion": "1.0",
@@ -738,10 +631,10 @@ if __name__ == "__main__":
                         "arn": "arn:aws:s3:::bill-images-169615918165",
                     },
                     "object": {
-                        "key": "bills/2025/10/101/electronic.jpeg",
+                        "key": "bills/2025/9/101/electricity.jpeg",
                         "size": 3076453,
                         "eTag": "447e0514ab8578c0c2d21e554d93314c",
-                        "sequencer": "00690A96514FBFA4D0",
+                        "sequencer": "00690AF74AD31F0E79",
                     },
                 },
             }
