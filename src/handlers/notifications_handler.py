@@ -6,7 +6,11 @@ import json
 import logging
 import os
 from src.utils.responses import create_success_response, create_error_response
-from src.services.notifications_service import send_notification_to_all
+from src.services.notifications_service import (
+    send_notification_to_all,
+    send_notification_to_student,
+)
+from src.dto.notification_dto import PersonalNotificationRequestDTO
 
 # 로거 설정
 logger = logging.getLogger()
@@ -120,4 +124,61 @@ def webhook_handler(event, context):
 
     except Exception as e:
         logger.error(f"❌ 웹훅 핸들러 오류: {e}")
+        return create_error_response("Internal server error", 500)
+
+
+def send_individual_notification_handler(event, context):
+    """
+    특정 학생에게 개인 알림을 발송합니다.
+
+    POST /notifications/individual
+    Body: {
+        "student_no": "string",
+        "title": "string",
+        "content": "string"
+    }
+    """
+    try:
+        logger.info("개인 알림 발송 요청 수신")
+
+        # 1. JSON 파싱
+        try:
+            body = json.loads(event.get("body", "{}"))
+        except json.JSONDecodeError:
+            logger.error("❌ 잘못된 JSON 형식")
+            return create_error_response("Invalid JSON format.", 400)
+
+        # 2. DTO 생성 및 검증
+        try:
+            request_dto = PersonalNotificationRequestDTO(
+                student_no=body.get("student_no"),
+                title=body.get("title"),
+                content=body.get("content"),
+            )
+        except Exception as e:
+            logger.error(f"❌ DTO 생성 실패: {e}")
+            return create_error_response(f"Invalid request data: {str(e)}", 400)
+
+        # 3. 데이터 검증
+        is_valid, error_msg = request_dto.validate()
+        if not is_valid:
+            logger.error(f"❌ 데이터 검증 실패: {error_msg}")
+            return create_error_response(error_msg, 400)
+
+        # 4. 서비스 호출
+        result, error = send_notification_to_student(
+            request_dto.student_no, request_dto.title, request_dto.content
+        )
+        if error:
+            logger.error(f"❌ 개인 알림 발송 실패: {error}")
+            return create_error_response(error, 500)
+
+        # 5. 성공 응답
+        logger.info(
+            f"✅ 개인 알림 발송 완료: student_no={request_dto.student_no}, 성공={result['success_count']}, 실패={result['failure_count']}"
+        )
+        return create_success_response(result)
+
+    except Exception as e:
+        logger.error(f"❌ 개인 알림 발송 핸들러 오류: {e}")
         return create_error_response("Internal server error", 500)
