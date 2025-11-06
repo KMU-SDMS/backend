@@ -23,7 +23,7 @@ def get_students(room_number: int | None = None):
             response = (
                 supabase.postgrest.schema("core")
                 .from_("students")
-                .select("studentNo, name, room_number, check_in_date")
+                .select("studentNo, name, room_number, check_in_date, check_out_date")
                 .eq("room_number", room_number)
                 .order("name")
                 .execute()
@@ -32,7 +32,7 @@ def get_students(room_number: int | None = None):
             response = (
                 supabase.postgrest.schema("core")
                 .from_("students")
-                .select("studentNo, name, room_number, check_in_date")
+                .select("studentNo, name, room_number, check_in_date, check_out_date")
                 .order("name")
                 .execute()
             )
@@ -65,7 +65,9 @@ def get_student_by_student_no(student_no: str):
         response = (
             supabase.postgrest.schema("core")
             .from_("students")
-            .select("studentNo, name, room_number, check_in_date, created_at")
+            .select(
+                "studentNo, name, room_number, check_in_date, check_out_date, created_at"
+            )
             .eq("studentNo", student_no)
             .execute()
         )
@@ -91,6 +93,7 @@ def create_student(
     student_no: str,
     room_number: int | None = None,
     check_in_date: str | None = None,
+    check_out_date: str | None = None,
 ):
     """
     Supabase에 새 학생 데이터를 삽입합니다.
@@ -110,6 +113,7 @@ def create_student(
             "studentNo": student_no,
             "room_number": room_number,
             "check_in_date": check_in_date,
+            "check_out_date": check_out_date,
         }
 
         response = (
@@ -147,7 +151,7 @@ def update_student(student_no: str, fields: dict):
         )
 
         # 허용된 키만 필터링
-        allowed_keys = {"name", "room_number", "check_in_date"}
+        allowed_keys = {"name", "room_number", "check_in_date", "check_out_date"}
         update_data = {k: v for k, v in fields.items() if k in allowed_keys}
 
         if not update_data:

@@ -95,6 +95,7 @@ def create(event, context):
             student_no=create_request.studentIdNum,
             room_number=create_request.roomNumber,
             check_in_date=create_request.checkInDate,
+            check_out_date=create_request.checkOutDate,
         )
 
         if error:
@@ -132,6 +133,8 @@ def update(event, context):
             update_fields["room_number"] = update_request.roomNumber
         if update_request.checkInDate is not None:
             update_fields["check_in_date"] = update_request.checkInDate
+        if update_request.checkOutDate is not None:
+            update_fields["check_out_date"] = update_request.checkOutDate
 
         # 서비스 호출
         result, error = students_service.update_student(
