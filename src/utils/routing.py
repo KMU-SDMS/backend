@@ -29,6 +29,10 @@ ROUTE_OVERRIDES: Dict[Tuple[str, str], Tuple[str, str]] = {
         "notifications_handler",
         "send_notification_handler",
     ),
+    ("POST", "notifications/individual"): (
+        "notifications_handler",
+        "send_individual_notification_handler",
+    ),
     ("GET", "notices/filter"): ("notices_handler", "filter"),
 }
 
