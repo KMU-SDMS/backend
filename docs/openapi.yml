@@ -138,6 +138,7 @@ paths:
               studentIdNum: "20243105"
               roomNumber: 101
               checkInDate: "2024-02-26"
+              checkOutDate: "2024-08-31"
       responses:
         "201":
           description: 학생이 성공적으로 생성되었습니다.
@@ -174,6 +175,7 @@ paths:
               name: "이현구"
               roomNumber: 101
               checkInDate: "2024-02-27"
+              checkOutDate: "2024-08-31"
       responses:
         "200":
           description: 학생 정보가 성공적으로 수정되었습니다.
@@ -1180,6 +1182,11 @@ components:
           format: date
           description: 입사 날짜 (YYYY-MM-DD 형식)
           example: "2024-09-01"
+        checkOutDate:
+          type: string
+          format: date
+          description: 퇴사 날짜 (YYYY-MM-DD 형식)
+          example: "2025-02-28"
         createdAt:
           type: string
           format: date-time
@@ -1210,6 +1217,11 @@ components:
           format: date
           description: 입사 날짜 (YYYY-MM-DD 형식, 선택사항)
           example: "2024-02-26"
+        checkOutDate:
+          type: string
+          format: date
+          description: 퇴사 날짜 (YYYY-MM-DD 형식, 선택사항)
+          example: "2024-08-31"
 
     StudentUpdateRequest:
       type: object
@@ -1234,6 +1246,11 @@ components:
           format: date
           description: 입사 날짜 (YYYY-MM-DD 형식, 선택사항)
           example: "2024-02-27"
+        checkOutDate:
+          type: string
+          format: date
+          description: 퇴사 날짜 (YYYY-MM-DD 형식, 선택사항)
+          example: "2024-08-31"
 
     Notice:
       type: object
