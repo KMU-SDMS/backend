@@ -13,6 +13,8 @@ MODULE_MAP: Dict[str, str] = {
     "bill": "bill_handler",
     "subscriptions": "subscriptions_handler",
     "notifications": "notifications_handler",
+    "overnight-stay": "overnight_stays_handler",
+    "overnight-stays": "overnight_stays_handler",
 }
 
 # 2) 예외 라우팅: (METHOD, path_after_api)
@@ -54,6 +56,10 @@ DEFAULT_FUNC_RULES: Dict[Tuple[str, str], str] = {
     ("POST", "student"): "create",
     ("PUT", "student"): "update",
     ("DELETE", "student"): "delete",
+    ("POST", "overnight-stay"): "create",
+    ("GET", "overnight-stay"): "get_student_requests",
+    ("GET", "overnight-stays"): "get_admin_requests",
+    ("PATCH", "overnight-stays"): "update_status",
 }
 
 
