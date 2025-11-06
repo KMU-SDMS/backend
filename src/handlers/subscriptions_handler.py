@@ -23,39 +23,57 @@ def create_subscription_handler(event, context):
     POST /subscriptions
     Body: {
         "fcm_token": "string",
-        "student_no": "string",
         "platform": "web"
     }
     """
     try:
         logger.info("FCM 구독 생성 요청 수신")
 
-        # 1. JSON 파싱
+        # 1. 세션에서 사용자 정보 추출
+        user_info = event.get("user_info", {})
+        username = user_info.get("username")
+
+        if not username:
+            logger.error("❌ 사용자 정보를 찾을 수 없습니다 (인증 필요)")
+            return create_error_response(
+                "Unauthorized: user information not found", 401
+            )
+
+        logger.info(f"📱 사용자 {username}의 FCM 구독 생성 요청")
+
+        # 2. JSON 파싱
         try:
             body = json.loads(event.get("body", "{}"))
         except json.JSONDecodeError:
             logger.error("❌ 잘못된 JSON 형식")
             return create_error_response("Invalid JSON format.", 400)
 
-        # 2. DTO 생성 및 검증
+        # 3. DTO 생성 (student_no는 세션에서 추출한 username 사용)
         try:
             request_dto = SubscriptionCreateRequestDTO(
                 fcm_token=body.get("fcm_token"),
-                student_no=body.get("student_no"),
                 platform=body.get("platform", "web"),
             )
         except Exception as e:
             logger.error(f"❌ DTO 생성 실패: {e}")
             return create_error_response(f"Invalid request data: {str(e)}", 400)
 
-        # 3. 서비스 호출
-        subscription_dto, error = create_subscription(request_dto)
+        # 4. 데이터 검증
+        is_valid, error_msg = request_dto.validate()
+        if not is_valid:
+            logger.error(f"❌ 데이터 검증 실패: {error_msg}")
+            return create_error_response(error_msg, 400)
+
+        # 5. 서비스 호출 (student_no를 별도로 전달)
+        subscription_dto, error = create_subscription(request_dto, username)
         if error:
             logger.error(f"❌ 구독 생성 실패: {error}")
             return create_error_response(error, 500)
 
-        # 4. 성공 응답
-        logger.info(f"✅ FCM 구독 생성 완료: id={subscription_dto.id}")
+        # 6. 성공 응답
+        logger.info(
+            f"✅ FCM 구독 생성 완료: id={subscription_dto.id}, student_no={username}"
+        )
         return create_success_response(subscription_dto.to_dict())
 
     except Exception as e:

@@ -14,12 +14,14 @@ logger.setLevel(logging.INFO)
 
 def create_subscription(
     request_dto: SubscriptionCreateRequestDTO,
+    student_no: str,
 ) -> Tuple[Optional[SubscriptionDTO], Optional[str]]:
     """
     FCM 구독을 생성하거나 업데이트합니다.
 
     Args:
-        request_dto: 구독 생성 요청 DTO
+        request_dto: 구독 생성 요청 DTO (fcm_token, platform)
+        student_no: 학번 (세션에서 추출된 값)
 
     Returns:
         (SubscriptionDTO, 에러 메시지)
@@ -30,7 +32,7 @@ def create_subscription(
             return None, "Supabase client could not be initialized."
 
         logger.info(
-            f"FCM 구독 생성/업데이트: fcm_token={request_dto.fcm_token[:20]}..."
+            f"FCM 구독 생성/업데이트: student_no={student_no}, fcm_token={request_dto.fcm_token[:20]}..."
         )
 
         # 데이터 검증
@@ -41,7 +43,7 @@ def create_subscription(
         # UPSERT로 중복 방지 (fcm_token UNIQUE 제약 활용)
         insert_data = {
             "fcm_token": request_dto.fcm_token,
-            "student_no": request_dto.student_no,
+            "student_no": student_no,
             "platform": request_dto.platform,
             "is_active": True,
         }
