@@ -732,7 +732,9 @@ paths:
   /api/subscriptions:
     post:
       summary: FCM 구독 생성
-      description: FCM 토큰을 등록하여 푸시 알림을 받을 수 있도록 구독합니다.
+      description: |
+        FCM 토큰을 등록하여 푸시 알림을 받을 수 있도록 구독합니다.
+        학번(student_no)은 로그인된 사용자 세션에서 자동으로 추출됩니다.
       tags:
         - Notifications
       requestBody:
@@ -743,8 +745,7 @@ paths:
               $ref: "#/components/schemas/SubscriptionCreateRequest"
             example:
               fcm_token: "fcm_token_example_12345"
-              student_no: "20243105"
-              platform: "ios"
+              platform: "web"
       responses:
         "200":
           description: 구독이 성공적으로 생성되었습니다.
@@ -754,6 +755,12 @@ paths:
                 $ref: "#/components/schemas/Subscription"
         "400":
           description: 잘못된 요청 (필수 필드 누락 또는 형식 오류)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: 인증 실패 (로그인 필요)
           content:
             application/json:
               schema:
@@ -830,6 +837,42 @@ paths:
                 $ref: "#/components/schemas/NotificationResult"
         "400":
           description: 잘못된 요청 (필수 필드 누락)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: 서버 내부 오류
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/notifications/individual:
+    post:
+      summary: 개인 알림 발송
+      description: 특정 학생에게 개인 알림을 발송합니다. 학생이 여러 기기를 가진 경우 모든 활성 기기로 발송됩니다.
+      tags:
+        - Notifications
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PersonalNotificationRequest"
+            example:
+              student_no: "20243105"
+              title: "개인 알림"
+              content: "청구서 확인 부탁드립니다."
+      responses:
+        "200":
+          description: 알림이 성공적으로 발송되었습니다.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PersonalNotificationResult"
+        "400":
+          description: 잘못된 요청 (필수 필드 누락 또는 형식 오류)
           content:
             application/json:
               schema:
@@ -1390,22 +1433,20 @@ components:
 
     SubscriptionCreateRequest:
       type: object
-      description: FCM 구독 생성 요청
+      description: |
+        FCM 구독 생성 요청
+        학번(student_no)은 로그인된 사용자 세션에서 자동으로 추출되므로 요청에 포함하지 않습니다.
       required:
         - fcm_token
-        - student_no
       properties:
         fcm_token:
           type: string
           description: FCM 토큰
           example: "fcm_token_example_12345"
-        student_no:
-          type: string
-          description: 학번
-          example: "20192762"
         platform:
           type: string
           description: 플랫폼 (기본값 web)
+          enum: [web, android, ios]
           default: "web"
           example: "web"
 
@@ -1599,6 +1640,72 @@ components:
           type: integer
           description: 파일 크기 (bytes)
           example: 2132
+
+    PersonalNotificationRequest:
+      type: object
+      description: 개인 알림 발송 요청
+      required:
+        - student_no
+        - title
+        - content
+      properties:
+        student_no:
+          type: string
+          description: 학번
+          example: "20243105"
+        title:
+          type: string
+          description: 알림 제목
+          example: "개인 알림"
+        content:
+          type: string
+          description: 알림 내용
+          example: "청구서 확인 부탁드립니다."
+
+    PersonalNotificationResult:
+      type: object
+      description: 개인 알림 발송 결과
+      properties:
+        success:
+          type: boolean
+          description: 발송 성공 여부
+          example: true
+        personal_notification_id:
+          type: integer
+          description: 개인 알림 ID
+          example: 123
+        student_no:
+          type: string
+          description: 학번
+          example: "20243105"
+        total_devices:
+          type: integer
+          description: 학생의 전체 기기 수
+          example: 3
+        success_count:
+          type: integer
+          description: 성공한 발송 수
+          example: 2
+        failure_count:
+          type: integer
+          description: 실패한 발송 수
+          example: 1
+        invalid_tokens:
+          type: array
+          items:
+            type: string
+          description: 무효한 토큰 리스트
+          example: ["token1"]
+        failed_tokens:
+          type: array
+          items:
+            type: string
+          description: 실패한 토큰 리스트
+          example: []
+        message:
+          type: string
+          description: 추가 메시지 (구독 없는 경우)
+          example: "No active subscriptions found for this student"
 
 tags:
   - name: Rooms
