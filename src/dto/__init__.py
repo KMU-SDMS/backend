@@ -27,6 +27,15 @@ from .notification_dto import (
     SubscriptionCreateRequestDTO,
     NotificationLogDTO,
 )
+from .overnight_stay_dto import (
+    OvernightStayDTO,
+    OvernightStayCreateRequestDTO,
+    OvernightStayStatusUpdateRequestDTO,
+    OvernightStayStudentListDTO,
+    OvernightStaySummaryDTO,
+    OvernightStayAdminListDTO,
+    OvernightStayPageInfoDTO,
+)
 
 __all__ = [
     "BaseDTO",
@@ -52,4 +61,11 @@ __all__ = [
     "SubscriptionDTO",
     "SubscriptionCreateRequestDTO",
     "NotificationLogDTO",
+    "OvernightStayDTO",
+    "OvernightStayCreateRequestDTO",
+    "OvernightStayStatusUpdateRequestDTO",
+    "OvernightStayStudentListDTO",
+    "OvernightStaySummaryDTO",
+    "OvernightStayAdminListDTO",
+    "OvernightStayPageInfoDTO",
 ]
