@@ -1,9 +1,7 @@
 import json
 import boto3
 import os
-import logging
 import re
-from datetime import datetime
 from typing import Dict, Any, Optional, Tuple
 from urllib.parse import unquote_plus
 
@@ -13,10 +11,8 @@ from PIL import Image
 import numpy as np
 import json as _json
 from paddleocr import PaddleOCR
-
-# 로깅 설정
-logger = logging.getLogger()
-logger.setLevel(logging.INFO)
+from datetime import datetime, date
+import calendar
 
 # AWS 클라이언트 초기화
 s3_client = boto3.client("s3")
@@ -27,15 +23,6 @@ BILL_BUCKET_NAME = os.environ.get("BILL_BUCKET_NAME", "")
 # Supabase 클라이언트 초기화
 supabase_client = get_supabase_client("core")
 
-# PaddleOCR 설정
-PADDLE_LANG = os.environ.get("PADDLE_LANG", "korean")
-_PADDLE_OCR = None
-_PPSTRUCT = None
-
-
-def _get_ppstructure():
-    return None
-
 
 def lambda_handler(event, context):
     """
@@ -43,7 +30,6 @@ def lambda_handler(event, context):
 
     S3 경로 구조: bills/{year}/{month}/{room_id}/{bill_type}
     """
-    logger.info(f"📥 Received S3 event: {json.dumps(event, indent=2)}")
 
     try:
         # S3 이벤트에서 버킷과 키 정보 추출
@@ -54,14 +40,7 @@ def lambda_handler(event, context):
                 event_name = record.get("eventName", "")
 
                 # PUT 이벤트만 처리 (파일 업로드)
-                if event_name.startswith("ObjectCreated"):
-                    result = process_bill_image(bucket_name, object_key)
-                    if result:
-                        print(f"✅ OCR processing completed successfully")
-                    else:
-                        print(f"❌ OCR processing failed")
-                else:
-                    print(f"⏭️ Skipping non-creation event: {event_name}")
+                result = process_bill_image(bucket_name, object_key)
 
         return {
             "statusCode": 200,
@@ -93,7 +72,7 @@ def process_bill_image(bucket_name: str, object_key: str) -> bool:
         bool: 처리 성공 여부
     """
     try:
-        # S3 경로 파싱
+        # # S3 경로 파싱
         path_info = parse_s3_path(object_key)
 
         year, month, room_id, bill_type = path_info
@@ -119,25 +98,34 @@ def process_bill_image(bucket_name: str, object_key: str) -> bool:
         ocr_json = perform_ocr(np_img)
 
         # 청구금액 파싱
-        bill_amount = parse_bill_amount_from_ocr_data(ocr_json, bill_type)
+        total_bill_amount = parse_bill_amount_from_ocr_data(ocr_json, bill_type)
         bank_info = extract_bank_info(ocr_json.get("rec_texts", []))
 
-        # # 결과 저장
-        # save_result = save_ocr_result(
-        #     year=year,
-        #     month=month,
-        #     room_id=room_id,
-        #     type=bill_type,
-        #     amount=bill_data.get("amount"),
-        #     bank_name=bill_data.get("bank_name"),
-        #     bank_number=bill_data.get("bank_number"),
-        # )
+        # 학생 정보 조회
+        students_info = get_student_info_use_room_id(room_id)
+
+        # 호실 내 모든 학생들의 관리비 비례 배분 계산
+        bill_calculations = calculate_room_bill_distribution(
+            students_info=students_info,
+            total_bill_amount=total_bill_amount,
+            year=year,
+            month=month,
+        )
+
+        # 결과 저장
+        save_result = save_ocr_result(
+            year=year,
+            month=month,
+            room_id=room_id,
+            bill_type=bill_type,
+            bill_calculations=bill_calculations,
+            bank_info=bank_info,
+        )
 
         return True
 
     except Exception as e:
-        logger.error(f"❌ Error processing {object_key}: {str(e)}")
-        return False
+        raise e
 
 
 def parse_s3_path(object_key: str) -> Optional[Tuple[str, str, str, str]]:
@@ -171,8 +159,112 @@ def parse_s3_path(object_key: str) -> Optional[Tuple[str, str, str, str]]:
         return None
 
     except Exception as e:
-        logger.error(f"❌ Path parsing error: {str(e)}")
+        print(f"❌ Path parsing error: {str(e)}")
         return None
+
+
+def calculate_room_bill_distribution(
+    students_info: list, total_bill_amount: int, year: str, month: str
+) -> list:
+    """
+    호실 내 모든 학생들의 거주 기간을 고려하여 관리비를 비례 배분합니다.
+
+    계산 공식: 한 학생이 내야할 금액 = 총금액 / (해당 호실의 학생들의 총 거주 기간) * 한학생의 거주기간
+
+    Args:
+        students_info: 호실 내 모든 학생들의 정보 리스트
+        total_bill_amount: 해당 월의 총 관리비
+        year: 청구 년도
+        month: 청구 월
+
+    Returns:
+        list: 각 학생별 계산 결과 리스트
+    """
+    try:
+
+        # 청구 월의 시작일과 마지막일
+        bill_year = int(year)
+        bill_month = int(month)
+        month_start = date(bill_year, bill_month, 1)
+        month_end = date(
+            bill_year, bill_month, calendar.monthrange(bill_year, bill_month)[1]
+        )
+
+        # 1단계: 각 학생의 거주 일수 계산
+        student_calculations = []
+        total_room_days = 0  # 호실 내 모든 학생들의 총 거주 일수
+
+        for student in students_info:
+            # 입실일 파싱
+            check_in_date = datetime.strptime(
+                student["check_in_date"], "%Y-%m-%d"
+            ).date()
+
+            # 퇴실일 파싱 (없으면 현재 거주 중으로 간주)
+            check_out_date = datetime.strptime(
+                student["check_out_date"], "%Y-%m-%d"
+            ).date()
+
+            # 실제 거주 시작일과 종료일 계산
+            actual_start = max(
+                check_in_date, month_start
+            )  # 청구월 시작일과 입실일 중 늦은 날
+            actual_end = min(
+                check_out_date, month_end
+            )  # 청구월 마지막일과 퇴실일 중 빠른 날
+
+            # 거주 일수 계산
+            if actual_start > actual_end:
+                days_stayed = 0
+            else:
+                days_stayed = (actual_end - actual_start).days + 1
+
+            total_room_days += days_stayed
+
+            student_calculations.append(
+                {
+                    "student_no": student["studentNo"],
+                    "days_stayed": days_stayed,
+                    "student_amount": 0,
+                }
+            )
+
+        # 2단계: 비례 배분으로 각 학생의 청구 금액 계산
+        for item in student_calculations:
+            student_no = item["student_no"]
+            days_stayed = item["days_stayed"]
+            student_amount = item["student_amount"]
+
+            if total_room_days > 0:
+                student_amount = int(total_bill_amount * days_stayed / total_room_days)
+            else:
+                student_amount = 0
+
+            # 결과 업데이트
+            item["student_amount"] = student_amount
+
+        return student_calculations
+    except Exception as e:
+        print(f"❌ 호실 관리비 배분 계산 중 오류: {str(e)}")
+        return []
+
+
+def get_student_info_use_room_id(room_id: str) -> dict:
+    """
+    room_id를 사용하여 학생 정보를 조회합니다.
+    """
+    try:
+        response = (
+            supabase_client.postgrest.schema("core")
+            .from_("students")
+            .select("*")
+            .eq("room_number", room_id)
+            .execute()
+        )
+        return response.data
+    except Exception as e:
+        print(f"❌ Error getting student info: {str(e)}")
+        return []
 
 
 def resize_image(
@@ -252,13 +344,13 @@ def save_image_to_s3(
             Body=buf.getvalue(),
             ContentType=content_type,
         )
-        logger.info(
+        print(
             f"🖼️ Resized image uploaded to s3://{bucket}/{key} ({original_size} -> {image.size})"
         )
         return True
     except Exception as e:
-        logger.warning(f"⚠️ Failed to upload resized image: {str(e)}")
-        return False
+        print(f"⚠️ Failed to upload resized image: {str(e)}")
+        raise e
 
 
 def find_nearby_amount(target_boxs, bill_keyword_box, threshold=100):
@@ -311,8 +403,8 @@ def parse_bill_amount_from_ocr_data(json_data, bill_type: str):
         rec_boxes = json_data.get("rec_boxes", [])
 
         if len(rec_texts) != len(rec_boxes):
-            logger.warning("⚠️ rec_texts와 rec_boxes 길이가 다름")
-            return None
+            print("⚠️ rec_texts와 rec_boxes 길이가 다름")
+            raise Exception("rec_texts와 rec_boxes 길이가 다름")
 
         # 금액 패턴 정규식 (쉼표가 있는 숫자)
         amount_pattern = re.compile(r"^\d{1,3}(?:,\d{3})*$")
@@ -335,8 +427,7 @@ def parse_bill_amount_from_ocr_data(json_data, bill_type: str):
                 break
 
         if bill_keyword_box is None:
-            logger.info("💰 청구금액 키워드를 찾을 수 없음")
-            return None
+            raise Exception("청구금액 키워드를 찾을 수 없음")
 
         amount_candidates = []
 
@@ -362,8 +453,7 @@ def parse_bill_amount_from_ocr_data(json_data, bill_type: str):
                     continue
 
         if not amount_candidates:
-            logger.info("💰 금액 후보를 찾을 수 없음")
-            return None
+            raise Exception("금액 후보를 찾을 수 없음")
 
         # 주변 텍스트 찾기 (거리 임계값 150px)
         nearest_amount = find_nearby_amount(
@@ -372,8 +462,7 @@ def parse_bill_amount_from_ocr_data(json_data, bill_type: str):
         return nearest_amount
 
     except Exception as e:
-        logger.error(f"❌ 청구금액 파싱 중 오류: {str(e)}")
-        return None
+        raise e
 
 
 def perform_ocr(np_img: np.ndarray) -> dict:
@@ -400,8 +489,7 @@ def perform_ocr(np_img: np.ndarray) -> dict:
 
         return content_json
     except Exception as e:
-        logger.error(f"❌ OCR failed (PaddleOCR): {str(e)}")
-        return None
+        raise e
 
 
 def extract_bill_data(ocr_result: Dict[str, Any], bill_type: str) -> Dict[str, Any]:
@@ -475,13 +563,7 @@ def extract_bill_data(ocr_result: Dict[str, Any], bill_type: str) -> Dict[str, A
         }
 
     except Exception as e:
-        logger.error(f"❌ Data extraction failed: {str(e)}")
-        return {
-            "amount": None,
-            "bank_name": None,
-            "bank_number": None,
-            "error": str(e),
-        }
+        raise e
 
 
 def save_ocr_result(
@@ -489,88 +571,63 @@ def save_ocr_result(
     month: str,
     room_id: str,
     bill_type: str,
-    amount: int,
-    bank_name: str,
-    bank_number: str,
+    bill_calculations: list,
+    bank_info: list,
 ) -> bool:
     """
-    OCR 결과를 Supabase core.bill 테이블에 저장합니다.
+    OCR 결과를 Supabase core.bill 테이블에 upsert로 저장합니다.
 
     Args:
         year: 연도
         month: 월
         room_id: 호실
         bill_type: 관리비 타입
-        ocr_text: OCR 추출 텍스트
-        extracted_data: 추출된 관리비 데이터
+        bill_calculations: 학생별 관리비 계산 결과 리스트
+        bank_info: 은행 정보 리스트
 
     Returns:
         bool: 저장 성공 여부
     """
     try:
-        if not supabase_client:
-            logger.warning("⚠️ Supabase client not configured, skipping save")
-            return False
 
-        # OCR에서 추출된 데이터 파싱 (새 구조 우선)
-        amount = (
-            extracted_data.get("amount") if isinstance(extracted_data, dict) else None
+        # 마감일 생성 (해당 월의 마지막 날)
+        bill_year = int(year)
+        bill_month = int(month)
+        end_date = date(
+            bill_year, bill_month, calendar.monthrange(bill_year, bill_month)[1]
         )
-        if amount is None:
-            extracted_values = (
-                extracted_data.get("extracted_values", {})
-                if isinstance(extracted_data, dict)
-                else {}
-            )
-            amount = extracted_values.get("amount")
 
-        # 계좌번호와 은행명: 추출 데이터 우선, 없을 경우 OCR 텍스트에서 추출
-        bank_name = (
-            extracted_data.get("bank_name")
-            if isinstance(extracted_data, dict)
-            else None
-        )
-        bank_number = (
-            extracted_data.get("bank_number")
-            if isinstance(extracted_data, dict)
-            else None
-        )
-        if not bank_name or not bank_number:
-            # OCR 텍스트가 문자열인 경우 리스트로 변환
-            ocr_texts = [ocr_text] if isinstance(ocr_text, str) else ocr_text
-            bank_info = extract_bank_info(ocr_texts)
-            bank_number = bank_number or bank_info.get("bank_number")
-            bank_name = bank_name or bank_info.get("bank_name")
+        # upsert용 데이터 준비
+        upsert_data = []
 
-        # 날짜 생성 (year-month 형태)
-        bill_date = f"{year}-{month.zfill(2)}-01"  # 월의 첫날로 설정
+        for calc in bill_calculations:
+            student_no = calc["student_no"]
+            student_amount = calc["student_amount"]
 
-        # core.bill 테이블에 저장할 데이터
-        bill_data = {
-            "date": bill_date,
-            "type": bill_type,
-            "bank_number": bank_number,
-            "bank_name": bank_name,
-        }
-        print(f"💾 Saving OCR result to Supabase: {bill_data}")
-        # Supabase에 데이터 삽입 (core 스키마 명시)
+            bill_record = {
+                "end_date": str(end_date),
+                "type": bill_type,
+                "student_no": student_no,
+                "bank_info": bank_info,  # JSON 형태로 저장
+                "amount": student_amount,
+            }
+
+            upsert_data.append(bill_record)
+
+        # 벌크 upsert 수행
+        # on_conflict 파라미터로 중복 시 업데이트할 컬럼 지정
+        # student_no, type 조합이 유니크하다고 가정
         result = (
             supabase_client.postgrest.schema("core")
             .from_("bill")
-            .insert(bill_data)
+            .upsert(upsert_data, on_conflict="student_no,type")
             .execute()
         )
 
-        if result.data:
-            logger.info(f"💾 Saved OCR result to Supabase: {result.data[0]['id']}")
-            return True
-        else:
-            logger.error(f"❌ Failed to save to Supabase: No data returned")
-            return False
+        return True
 
     except Exception as e:
-        logger.error(f"❌ Failed to save result: {str(e)}")
-        return False
+        raise e
 
 
 def extract_bank_info(ocr_texts: list) -> list[dict[str, Optional[str]]]:
@@ -601,45 +658,4 @@ def extract_bank_info(ocr_texts: list) -> list[dict[str, Optional[str]]]:
 
         return result
     except Exception as e:
-        logger.error(f"❌ Bank info extraction failed: {str(e)}")
-        return {"bank_name": None, "bank_number": None}
-
-
-# 테스트용 로컬 실행
-if __name__ == "__main__":
-    # 테스트 이벤트
-    test_event = {
-        "Records": [
-            {
-                "eventVersion": "2.1",
-                "eventSource": "aws:s3",
-                "awsRegion": "ap-northeast-2",
-                "eventTime": "2025-11-05T07:05:46.912Z",
-                "eventName": "ObjectCreated:Put",
-                "userIdentity": {"principalId": "A1GXL1V1X4D2UB"},
-                "requestParameters": {"sourceIPAddress": "1.209.174.122"},
-                "responseElements": {
-                    "x-amz-request-id": "97EFHE215Q1451GJ",
-                    "x-amz-id-2": "vag3kD+WVH4hHxd8IEgcB3horoMFx1pXXbYd6cpPpbpINnDo8KxFS8wtGHs7NPn4YcpqihZ6D7+4i1D42FLouXmsQ0SgbBAf0wrFSSSBocI=",
-                },
-                "s3": {
-                    "s3SchemaVersion": "1.0",
-                    "configurationId": "4e308ea0-eb7c-42b6-84aa-2d9d0986d81f",
-                    "bucket": {
-                        "name": "bill-images-169615918165",
-                        "ownerIdentity": {"principalId": "A1GXL1V1X4D2UB"},
-                        "arn": "arn:aws:s3:::bill-images-169615918165",
-                    },
-                    "object": {
-                        "key": "bills/2025/9/101/electricity.jpeg",
-                        "size": 3076453,
-                        "eTag": "447e0514ab8578c0c2d21e554d93314c",
-                        "sequencer": "00690AF74AD31F0E79",
-                    },
-                },
-            }
-        ]
-    }
-
-    result = lambda_handler(test_event, None)
-    print(f"Test result: {result}")
+        raise e
