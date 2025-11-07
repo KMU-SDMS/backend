@@ -35,28 +35,17 @@ provider:
   iam:
     role:
       statements:
-         - Effect: Allow
-           Action:
-             - dynamodb:PutItem
-             - dynamodb:UpdateItem
-             - dynamodb:GetItem
-             - dynamodb:DeleteItem
-             - dynamodb:DescribeTable
-             - dynamodb:Query
-           Resource:
-             - arn:aws:dynamodb:${self:provider.region}:${aws:accountId}:table/${self:provider.environment.SESSION_TABLE}
-             - arn:aws:dynamodb:${self:provider.region}:${aws:accountId}:table/${self:provider.environment.SESSION_TABLE}/index/*
-         - Effect: Allow
-           Action:
-             - s3:GetObject
-             - s3:GetObjectVersion
-           Resource:
-             - arn:aws:s3:::${file(envs/config.${self:provider.stage}.json):BILL_BUCKET_NAME}/*
-         - Effect: Allow
-           Action:
-             - textract:DetectDocumentText
-             - textract:AnalyzeDocument
-           Resource: "*"
+        - Effect: Allow
+          Action:
+            - dynamodb:PutItem
+            - dynamodb:UpdateItem
+            - dynamodb:GetItem
+            - dynamodb:DeleteItem
+            - dynamodb:DescribeTable
+            - dynamodb:Query
+          Resource:
+            - arn:aws:dynamodb:${self:provider.region}:${aws:accountId}:table/${self:provider.environment.SESSION_TABLE}
+            - arn:aws:dynamodb:${self:provider.region}:${aws:accountId}:table/${self:provider.environment.SESSION_TABLE}/index/*
   httpApi:
     cors:
       allowedOrigins: ${file(envs/config.${self:provider.stage}.json):CORS_ORIGINS}
@@ -171,16 +160,3 @@ functions:
       - httpApi:
           method: any
           path: /api/{proxy+}
-
-  billOcrProcessor:
-    name: ${self:provider.stage}-bill-OCR-Processor
-    handler: src.services.calc-bill-from-ocr.lambda_handler
-    timeout: 300
-    memorySize: 1024
-    layers:
-      - { Ref: AppDependenciesLambdaLayer }
-    events:
-      - s3:
-          bucket: ${file(envs/config.${self:provider.stage}.json):BILL_BUCKET_NAME}
-          event: s3:ObjectCreated:Put
-
