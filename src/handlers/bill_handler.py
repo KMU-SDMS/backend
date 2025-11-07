@@ -26,9 +26,7 @@ def presign(event, context):
     logger.info("✅ Processing bill presign request")
 
     try:
-        if not is_admin_group(event.get("user_info")) and not is_common_user_group(
-            event.get("user_info")
-        ):
+        if not is_admin_group(event.get("user_info")):
             return responses.create_error_response("Unauthorized.", 401)
 
         body = json.loads(event.get("body", "{}"))
@@ -50,13 +48,7 @@ def presign(event, context):
             return responses.create_error_response("month is required.", 400)
 
         data, err = bill_service.create_presigned_put_url(
-            content_type,
-            file_ext,
-            room_id,
-            bill_type,
-            year,
-            month,
-            event.get("user_info"),
+            content_type, file_ext, room_id, bill_type, year, month
         )
         if err:
             return responses.create_error_response(err, 400)
@@ -80,10 +72,10 @@ def get_image(event, context):
     - year: 연도 (필수)
     - month: 월 (필수)
     """
-    if not is_common_user_group(event.get("user_info")) and not is_admin_group(
-        event.get("user_info")
-    ):
+    if not is_common_user_group(event.get("user_info")):
         return responses.create_error_response("Unauthorized.", 401)
+
+    logger.info("✅ Processing get bill image request")
 
     try:
         # 쿼리 파라미터 추출
@@ -121,36 +113,4 @@ def get_image(event, context):
 
     except Exception as e:
         logger.error(f"❌ get bill image failed: {e}")
-        return responses.create_error_response("Internal server error.", 500)
-
-
-def get_paid_image(event, context):
-    """
-    GET /bill/paid/image?roomId={roomId}&type={type}&year={year}&month={month}
-    """
-    if not is_common_user_group(event.get("user_info")) and not is_admin_group(
-        event.get("user_info")
-    ):
-        return responses.create_error_response("Unauthorized.", 401)
-
-    try:
-        query_params = event.get("queryStringParameters") or {}
-        room_id = query_params.get("roomId")
-        bill_type = query_params.get("type")
-        year = query_params.get("year")
-        month = query_params.get("month")
-        access_token = event.get("access_token") or ""
-
-        data, err = bill_service.get_paid_bill_image(room_id, bill_type, year, month)
-        if err:
-            return responses.create_error_response(err, 400)
-
-        if data is None:
-            return responses.create_error_response(
-                "No image found for the specified criteria.", 404
-            )
-        return responses.create_success_response(data)
-
-    except Exception as e:
-        logger.error(f"❌ get paid bill image failed: {e}")
         return responses.create_error_response("Internal server error.", 500)
