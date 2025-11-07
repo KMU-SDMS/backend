@@ -4,27 +4,41 @@ import uuid
 from typing import Any, Dict, Tuple
 from datetime import datetime
 import boto3
+from src.utils.cognito_auth import is_admin_group, is_common_user_group
 
 S3 = boto3.client("s3")
 
 
-def _load_env() -> Tuple[str, set[str], int, str, str]:
+def _load_env(
+    user_info: Dict[str, Any] = {"groups": [], "token_use": "default"}
+) -> Tuple[str, set[str], int, str, str]:
     """Load bucket from environment and return hardcoded config for the rest."""
-    bucket = os.environ["BILL_BUCKET_NAME"]
-    allowed = {
-        "image/jpeg",
-        "image/jpg",
-        "image/png",
-        "image/gif",
-        "image/webp",
-        "image/bmp",
-        "image/tiff",
-        "image/svg+xml",
-    }
-    expires = 300
-    key_prefix = "bills"
-    allow_origin = "*"
-    return bucket, allowed, expires, key_prefix, allow_origin
+    try:
+        bucket = os.environ["BILL_BUCKET_NAME"]
+        allowed = {
+            "image/jpeg",
+            "image/jpg",
+            "image/png",
+            "image/gif",
+            "image/webp",
+            "image/bmp",
+            "image/tiff",
+            "image/svg+xml",
+        }
+        expires = 300
+        if is_admin_group(user_info):
+            key_prefix = "bills"
+        elif is_common_user_group(user_info):
+            key_prefix = "bills/paid"
+        elif user_info.get("token_use") == "default":
+            key_prefix = "bills"
+        else:
+            raise Exception("Unauthorized")
+
+        allow_origin = "*"
+        return bucket, allowed, expires, key_prefix, allow_origin
+    except Exception as e:
+        raise e
 
 
 def create_presigned_put_url(
@@ -34,9 +48,10 @@ def create_presigned_put_url(
     bill_type: str,
     year: str,
     month: str,
+    user_info: Dict[str, Any],
 ) -> Tuple[Dict[str, Any] | None, str | None]:
     try:
-        bucket, allowed, expires, key_prefix, allow_origin = _load_env()
+        bucket, allowed, expires, key_prefix, allow_origin = _load_env(user_info)
 
         if allowed and content_type not in allowed:
             return None, f"contentType '{content_type}' not allowed"
@@ -46,7 +61,6 @@ def create_presigned_put_url(
         if bill_type not in valid_types:
             return None, f"Invalid bill type. Must be one of: {', '.join(valid_types)}"
 
-        # Create S3 key with roomId and type: bills/{roomId}/{type}
         key = f"{key_prefix}/{year}/{month}/{room_id}/{bill_type}"
 
         url = S3.generate_presigned_url(
@@ -86,7 +100,7 @@ def get_bill_image(
     """
     try:
         bucket, allowed, expires, key_prefix, allow_origin = _load_env()
-
+        key_prefix = "bills"
         # S3 prefix 생성: bills/{year}/{month}/{room_id}/{bill_type} (파일명으로 사용)
         prefix = f"{key_prefix}/{year}/{month}/{room_id}/{bill_type}"
 
@@ -116,5 +130,33 @@ def get_bill_image(
 
         return result, None
 
+    except Exception as e:
+        return None, str(e)
+
+
+def get_paid_bill_image(
+    room_id: str, bill_type: str, year: str, month: str
+) -> Tuple[Dict[str, Any] | None, str | None]:
+    try:
+        bucket, allowed, expires, key_prefix, allow_origin = _load_env()
+        key_prefix = "bills/paid"
+        prefix = f"{key_prefix}/{year}/{month}/{room_id}/{bill_type}"
+        response = S3.list_objects_v2(Bucket=bucket, Prefix=prefix)
+        if "Contents" in response and len(response["Contents"]) > 0:
+            obj = response["Contents"][0]
+            get_url = S3.generate_presigned_url(
+                ClientMethod="get_object",
+                Params={"Bucket": bucket, "Key": obj["Key"]},
+                ExpiresIn=expires,
+            )
+            result = {
+                "key": obj["Key"],
+                "url": get_url,
+                "lastModified": obj["LastModified"].isoformat(),
+                "size": obj["Size"],
+            }
+        else:
+            result = None
+        return result, None
     except Exception as e:
         return None, str(e)
