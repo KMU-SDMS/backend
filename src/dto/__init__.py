@@ -25,6 +25,8 @@ from .calendar_dto import (
 from .notification_dto import (
     SubscriptionDTO,
     SubscriptionCreateRequestDTO,
+    SubscriptionUpdateRequestDTO,
+    SubscriptionUpdateResponseDTO,
     NotificationLogDTO,
 )
 from .overnight_stay_dto import (
@@ -60,6 +62,8 @@ __all__ = [
     "CalendarUpdateRequestDTO",
     "SubscriptionDTO",
     "SubscriptionCreateRequestDTO",
+    "SubscriptionUpdateRequestDTO",
+    "SubscriptionUpdateResponseDTO",
     "NotificationLogDTO",
     "OvernightStayDTO",
     "OvernightStayCreateRequestDTO",
