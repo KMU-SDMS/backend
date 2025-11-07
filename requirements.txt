@@ -4,3 +4,7 @@ boto3
 requests
 google-auth
 google-auth-oauthlib
+Pillow
+numpy
+opencv-python-headless
+paddleocr
