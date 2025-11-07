@@ -27,6 +27,10 @@ ROUTE_OVERRIDES: Dict[Tuple[str, str], Tuple[str, str]] = {
         "subscriptions_handler",
         "get_subscription_status_handler",
     ),
+    ("PATCH", "subscriptions"): (
+        "subscriptions_handler",
+        "patch_subscription_handler",
+    ),
     ("POST", "notifications"): (
         "notifications_handler",
         "send_notification_handler",
