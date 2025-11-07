@@ -945,6 +945,48 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
+    patch:
+      summary: FCM 구독 활성/비활성 상태 변경
+      description: |
+        로그인된 사용자의 모든 FCM 구독의 활성 상태를 변경합니다.
+        학번(student_no)은 세션 정보에서 자동으로 추출됩니다.
+        해당 학생의 모든 구독이 요청한 active 상태로 변경됩니다.
+      tags:
+        - Notifications
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubscriptionUpdateRequest"
+            example:
+              active: false
+      responses:
+        "200":
+          description: 구독 상태가 성공적으로 변경되었습니다.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SubscriptionUpdateResponse"
+        "400":
+          description: 잘못된 요청 (필수 필드 누락 또는 형식 오류)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: 인증 실패 (로그인 필요)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: 서버 내부 오류
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
   /api/subscriptions/status:
     get:
       summary: FCM 구독 상태 조회
@@ -1831,6 +1873,38 @@ components:
           format: date-time
           description: 수정일시
           example: "2024-09-01T10:00:00Z"
+
+    SubscriptionUpdateRequest:
+      type: object
+      description: FCM 구독 상태 변경 요청
+      required:
+        - active
+      properties:
+        active:
+          type: boolean
+          description: 활성화 상태
+          example: false
+
+    SubscriptionUpdateResponse:
+      type: object
+      description: FCM 구독 상태 변경 응답
+      properties:
+        message:
+          type: string
+          description: 응답 메시지
+          example: "Subscription(s) updated successfully"
+        updated_count:
+          type: integer
+          description: 변경된 구독 개수
+          example: 2
+        student_no:
+          type: string
+          description: 학번
+          example: "20243105"
+        active:
+          type: boolean
+          description: 변경된 활성화 상태
+          example: false
 
     NotificationSendRequest:
       type: object
