@@ -182,20 +182,5 @@ functions:
     events:
       - s3:
           bucket: ${file(envs/config.${self:provider.stage}.json):BILL_BUCKET_NAME}
-          event: s3:ObjectCreated:*
-          rules:
-            - prefix: bills/
-            - suffix: .jpg
-      - s3:
-          bucket: ${file(envs/config.${self:provider.stage}.json):BILL_BUCKET_NAME}
-          event: s3:ObjectCreated:*
-          rules:
-            - prefix: bills/
-            - suffix: .jpeg
-      - s3:
-          bucket: ${file(envs/config.${self:provider.stage}.json):BILL_BUCKET_NAME}
-          event: s3:ObjectCreated:*
-          rules:
-            - prefix: bills/
-            - suffix: .png
+          event: s3:ObjectCreated:Put
 
