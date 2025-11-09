@@ -59,6 +59,7 @@ provider:
         - "PUT"
         - "DELETE"
         - "OPTIONS"
+        - "PATCH"
       allowCredentials: true
       maxAge: 86400
   environment:
