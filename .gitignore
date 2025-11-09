@@ -63,3 +63,4 @@ layer/
 encode.py
 
 output/
+.test.json

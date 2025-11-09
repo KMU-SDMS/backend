@@ -29,7 +29,7 @@ def _load_env(
         if is_admin_group(user_info):
             key_prefix = "bills"
         elif is_common_user_group(user_info):
-            key_prefix = "bills/paid"
+            key_prefix = "paid"
         elif user_info.get("token_use") == "default":
             key_prefix = "bills"
         else:
@@ -139,7 +139,7 @@ def get_paid_bill_image(
 ) -> Tuple[Dict[str, Any] | None, str | None]:
     try:
         bucket, allowed, expires, key_prefix, allow_origin = _load_env()
-        key_prefix = "bills/paid"
+        key_prefix = "paid"
         prefix = f"{key_prefix}/{year}/{month}/{room_id}/{bill_type}"
         response = S3.list_objects_v2(Bucket=bucket, Prefix=prefix)
         if "Contents" in response and len(response["Contents"]) > 0:

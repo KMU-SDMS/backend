@@ -52,11 +52,6 @@ provider:
              - s3:GetObjectVersion
            Resource:
              - arn:aws:s3:::${file(envs/config.${self:provider.stage}.json):BILL_BUCKET_NAME}/*
-         - Effect: Allow
-           Action:
-             - textract:DetectDocumentText
-             - textract:AnalyzeDocument
-           Resource: "*"
   httpApi:
     cors:
       allowedOrigins: ${file(envs/config.${self:provider.stage}.json):CORS_ORIGINS}
@@ -174,13 +169,15 @@ functions:
 
   billOcrProcessor:
     name: ${self:provider.stage}-bill-OCR-Processor
-    handler: src.services.calc-bill-from-ocr.lambda_handler
+    image:
+      uri: ${file(envs/config.${self:provider.stage}.json):BILL_OCR_IMAGE_URI}
     timeout: 300
-    memorySize: 1024
-    layers:
-      - { Ref: AppDependenciesLambdaLayer }
+    memorySize: 2048
     events:
       - s3:
           bucket: ${file(envs/config.${self:provider.stage}.json):BILL_BUCKET_NAME}
           event: s3:ObjectCreated:Put
-
+          rules:
+            - prefix: "bills/*"
+          existing: true
+          forceDeploy: true

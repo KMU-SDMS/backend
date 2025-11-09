@@ -481,87 +481,15 @@ def perform_ocr(np_img: np.ndarray) -> dict:
             use_doc_unwarping=False,  # 글자 기울기 보정
             use_textline_orientation=False,  # 글자 방향 보정
             text_detection_model_name="PP-OCRv5_server_det",
+            text_detection_model_dir="./ocr_models/PP-OCRv5_server_det_infer",
             text_recognition_model_name="korean_PP-OCRv5_mobile_rec",
+            text_recognition_model_dir="./ocr_models/korean_PP-OCRv5_mobile_rec_infer",
         ).predict(np_img)
 
-        result[0].save_to_json("./test.json")
-        content_json = json.load(open("./test.json"))
+        result[0].save_to_json("/tmp/test.json")
+        content_json = json.load(open("/tmp/test.json"))
 
         return content_json
-    except Exception as e:
-        raise e
-
-
-def extract_bill_data(ocr_result: Dict[str, Any], bill_type: str) -> Dict[str, Any]:
-    """
-    OCR 텍스트에서 금액과 계좌(은행명, 계좌번호)만 추출합니다.
-
-    Returns:
-      {
-        "amount": int | None,
-        "bank_name": str | None,
-        "bank_number": str | None,
-      }
-    """
-    try:
-        text = ocr_result.get("text", "") or ""
-
-        import re as _re
-
-        # 금액 추출: 키워드 우선, 그 외 보조 패턴
-        amounts_found: list[int] = []
-        keyword_amount_patterns = [
-            r"(?:금액|합계|총금액|납부금액|청구금액|납부하실금액)\s*[:：]?\s*(\d{1,3}(?:,\d{3})*)\s*원?",
-            r"₩\s*(\d{1,3}(?:,\d{3})*)",
-        ]
-        for pat in keyword_amount_patterns:
-            for m in _re.findall(pat, text):
-                try:
-                    amounts_found.append(int(str(m).replace(",", "")))
-                except Exception:
-                    pass
-        generic_amount_patterns = [
-            r"(\d{1,3}(?:,\d{3})*)\s*원",
-            r"(\d{1,3}(?:,\d{3})*)\s*KRW",
-        ]
-        for pat in generic_amount_patterns:
-            for m in _re.findall(pat, text):
-                try:
-                    amounts_found.append(int(str(m).replace(",", "")))
-                except Exception:
-                    pass
-        amount_value = max(amounts_found) if amounts_found else None
-
-        # 계좌/은행 추출
-        bank_name_value: Optional[str] = None
-        bank_number_value: Optional[str] = None
-        bank_names = "국민은행|우리은행|신한은행|하나은행|기업은행|경남은행|농협|새마을금고|신협|우체국|카카오뱅크|토스뱅크"
-        bank_line_pattern = _re.compile(rf"({bank_names})\s*[:：]\s*([0-9\-\s]{{7,}})")
-        account_pattern = _re.compile(r"(\d{2,4}(?:[- ]\d{2,6}){1,4})")
-        for line in text.splitlines():
-            line = line.strip()
-            if not line:
-                continue
-            m = bank_line_pattern.search(line)
-            if m:
-                bank_name_value = m.group(1)
-                bank_number_value = m.group(2).strip()
-                break
-            # 같은 라인에 은행명이 있으면 계좌 추출 시도
-            name_match = _re.search(bank_names, line)
-            if name_match:
-                m2 = account_pattern.search(line)
-                if m2:
-                    bank_name_value = name_match.group(0)
-                    bank_number_value = m2.group(1).strip()
-                    break
-
-        return {
-            "amount": amount_value,
-            "bank_name": bank_name_value,
-            "bank_number": bank_number_value,
-        }
-
     except Exception as e:
         raise e
 
@@ -645,7 +573,10 @@ def extract_bank_info(ocr_texts: list) -> list[dict[str, Optional[str]]]:
         result = []
         # 은행명과 계좌번호가 함께 있는 패턴들
         # 패턴: 은행명 + 공백/콜론/기타구분자 + 계좌번호
-        bank_account_pattern = r"(국민|신한|우리|하나|기업|농협|새마을금고|신협|우체국|카카오뱅크|토스뱅크|경남|부산|대구|광주|전북|제주|산업|KB|NH|KEB|Woori|Hana|IBK|SC제일|씨티|iM뱅크)\s*(\d[\d\-]*)"
+        bank_account_pattern = (
+            r"(국민|신한|우리|하나|기업|농협|새마을금고|신협|우체국|카카오뱅크|토스뱅크|경남|부산|대구|광주|전북|제주|산업|KB|NH|KEB|Woori|Hana|IBK|SC제일|씨티|iM뱅크)"
+            r"(?:은행)?\s*[:：]?\s*(\d[\d\-]*)"
+        )
 
         # OCR 텍스트들을 순회하면서 은행명+계좌번호 패턴 찾기
         for ocr_text in ocr_texts:
@@ -659,3 +590,107 @@ def extract_bank_info(ocr_texts: list) -> list[dict[str, Optional[str]]]:
         return result
     except Exception as e:
         raise e
+
+
+if __name__ == "__main__":
+
+    gas_event = {
+        "Records": [
+            {
+                "eventVersion": "2.1",
+                "eventSource": "aws:s3",
+                "awsRegion": "ap-northeast-2",
+                "eventTime": "2025-11-09T05:11:41.252Z",
+                "eventName": "ObjectCreated:Put",
+                "userIdentity": {"principalId": "A1GXL1V1X4D2UB"},
+                "requestParameters": {"sourceIPAddress": "1.209.175.101"},
+                "responseElements": {
+                    "x-amz-request-id": "13AZV8Z7GKTMTRWZ",
+                    "x-amz-id-2": "aIvQjgxsFQTe1OaX2PEhf6DuXN8JHQ6dhjjbbc/7TBeE9Fy6V6pkmNVpXpE+o9FnxJl/pf9MF5d9Z+/QD4Hwx2GkL4sOaE3IevgmpI/lhiY=",
+                },
+                "s3": {
+                    "s3SchemaVersion": "1.0",
+                    "configurationId": "4e308ea0-eb7c-42b6-84aa-2d9d0986d81f",
+                    "bucket": {
+                        "name": "bill-images-169615918165",
+                        "ownerIdentity": {"principalId": "A1GXL1V1X4D2UB"},
+                        "arn": "arn:aws:s3:::bill-images-169615918165",
+                    },
+                    "object": {
+                        "key": "bills/2025/10/101/gas.png",
+                        "size": 112790,
+                        "eTag": "93b3a1597820f386191c766b31d75d8c",
+                        "sequencer": "006910228D38A3EF2C",
+                    },
+                },
+            }
+        ]
+    }
+
+    water_event = {
+        "Records": [
+            {
+                "eventVersion": "2.1",
+                "eventSource": "aws:s3",
+                "awsRegion": "ap-northeast-2",
+                "eventTime": "2025-11-09T05:28:21.949Z",
+                "eventName": "ObjectCreated:Put",
+                "userIdentity": {"principalId": "A1GXL1V1X4D2UB"},
+                "requestParameters": {"sourceIPAddress": "1.209.175.101"},
+                "responseElements": {
+                    "x-amz-request-id": "EDQ913BC1B9XKCZ8",
+                    "x-amz-id-2": "EuvYy3oZjfWfkp6rFBdj6pnwmPgCCn1QgF4EfoNrNhp59zDX85dryTxDvKntJajHue77802R4+oimvQwtFumhD6d3eDaBOEr",
+                },
+                "s3": {
+                    "s3SchemaVersion": "1.0",
+                    "configurationId": "4e308ea0-eb7c-42b6-84aa-2d9d0986d81f",
+                    "bucket": {
+                        "name": "bill-images-169615918165",
+                        "ownerIdentity": {"principalId": "A1GXL1V1X4D2UB"},
+                        "arn": "arn:aws:s3:::bill-images-169615918165",
+                    },
+                    "object": {
+                        "key": "bills/2025/10/101/water.png",
+                        "size": 10466056,
+                        "eTag": "0a593cc3875736c5186613469a7f3932",
+                        "sequencer": "0069102675CD437BCF",
+                    },
+                },
+            }
+        ]
+    }
+
+    electricity_event = {
+        "Records": [
+            {
+                "eventVersion": "2.1",
+                "eventSource": "aws:s3",
+                "awsRegion": "ap-northeast-2",
+                "eventTime": "2025-11-09T05:33:16.093Z",
+                "eventName": "ObjectCreated:Put",
+                "userIdentity": {"principalId": "A1GXL1V1X4D2UB"},
+                "requestParameters": {"sourceIPAddress": "1.209.175.101"},
+                "responseElements": {
+                    "x-amz-request-id": "SM0TVVMTBXH2N6F2",
+                    "x-amz-id-2": "X8g46rTRYwGvfUCnuAQG8F04FP+YlCVNJXh5zb3kSRUn3x2MEq/1b9OWaelfVZZfzYJT70zQmmIy/WubteXJWzshlYPdoGDGZdsgLqAWgw4=",
+                },
+                "s3": {
+                    "s3SchemaVersion": "1.0",
+                    "configurationId": "4e308ea0-eb7c-42b6-84aa-2d9d0986d81f",
+                    "bucket": {
+                        "name": "bill-images-169615918165",
+                        "ownerIdentity": {"principalId": "A1GXL1V1X4D2UB"},
+                        "arn": "arn:aws:s3:::bill-images-169615918165",
+                    },
+                    "object": {
+                        "key": "bills/2025/10/101/electricity.png",
+                        "size": 10998937,
+                        "eTag": "b962b6ff0aa66c6d2663965ba575c5fa",
+                        "sequencer": "006910279BEEB1575E",
+                    },
+                },
+            }
+        ]
+    }
+
+    lambda_handler(water_event, None)
