@@ -35,25 +35,6 @@ provider:
   iam:
     role:
       statements:
-<<<<<<< HEAD
-         - Effect: Allow
-           Action:
-             - dynamodb:PutItem
-             - dynamodb:UpdateItem
-             - dynamodb:GetItem
-             - dynamodb:DeleteItem
-             - dynamodb:DescribeTable
-             - dynamodb:Query
-           Resource:
-             - arn:aws:dynamodb:${self:provider.region}:${aws:accountId}:table/${self:provider.environment.SESSION_TABLE}
-             - arn:aws:dynamodb:${self:provider.region}:${aws:accountId}:table/${self:provider.environment.SESSION_TABLE}/index/*
-         - Effect: Allow
-           Action:
-             - s3:GetObject
-             - s3:GetObjectVersion
-           Resource:
-             - arn:aws:s3:::${file(envs/config.${self:provider.stage}.json):BILL_BUCKET_NAME}/*
-=======
         - Effect: Allow
           Action:
             - dynamodb:PutItem
@@ -65,7 +46,6 @@ provider:
           Resource:
             - arn:aws:dynamodb:${self:provider.region}:${aws:accountId}:table/${self:provider.environment.SESSION_TABLE}
             - arn:aws:dynamodb:${self:provider.region}:${aws:accountId}:table/${self:provider.environment.SESSION_TABLE}/index/*
->>>>>>> 54aa9434cf3737d72ed2234c570cb22692745434
   httpApi:
     cors:
       allowedOrigins: ${file(envs/config.${self:provider.stage}.json):CORS_ORIGINS}
@@ -181,7 +161,6 @@ functions:
       - httpApi:
           method: any
           path: /api/{proxy+}
-<<<<<<< HEAD
 
   billOcrProcessor:
     name: ${self:provider.stage}-bill-OCR-Processor
@@ -197,5 +176,3 @@ functions:
             - prefix: "bills/*"
           existing: true
           forceDeploy: true
-=======
->>>>>>> 54aa9434cf3737d72ed2234c570cb22692745434

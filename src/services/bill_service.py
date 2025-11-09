@@ -10,7 +10,6 @@ S3 = boto3.client("s3")
 
 def _load_env() -> Tuple[str, set[str], int, str, str]:
     """Load bucket from environment and return hardcoded config for the rest."""
-<<<<<<< HEAD
     try:
         bucket = os.environ["BILL_BUCKET_NAME"]
         allowed = {
@@ -37,23 +36,6 @@ def _load_env() -> Tuple[str, set[str], int, str, str]:
         return bucket, allowed, expires, key_prefix, allow_origin
     except Exception as e:
         raise e
-=======
-    bucket = os.environ["BILL_BUCKET_NAME"]
-    allowed = {
-        "image/jpeg",
-        "image/jpg",
-        "image/png",
-        "image/gif",
-        "image/webp",
-        "image/bmp",
-        "image/tiff",
-        "image/svg+xml",
-    }
-    expires = 300
-    key_prefix = "bills"
-    allow_origin = "*"
-    return bucket, allowed, expires, key_prefix, allow_origin
->>>>>>> 54aa9434cf3737d72ed2234c570cb22692745434
 
 
 def create_presigned_put_url(
@@ -147,7 +129,6 @@ def get_bill_image(
 
     except Exception as e:
         return None, str(e)
-<<<<<<< HEAD
 
 
 def get_paid_bill_image(
@@ -176,5 +157,3 @@ def get_paid_bill_image(
         return result, None
     except Exception as e:
         return None, str(e)
-=======
->>>>>>> 54aa9434cf3737d72ed2234c570cb22692745434
