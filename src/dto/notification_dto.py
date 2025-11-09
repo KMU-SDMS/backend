@@ -143,3 +143,26 @@ class PersonalNotificationLogDTO(BaseDTO):
             error_message=data.get("error_message"),
             sent_at=data.get("sent_at"),
         )
+
+
+@dataclass
+class SubscriptionUpdateRequestDTO(BaseDTO):
+    """FCM 구독 상태 변경 요청 DTO"""
+
+    active: bool
+
+    def validate(self) -> tuple[bool, Optional[str]]:
+        """요청 데이터 검증"""
+        if not isinstance(self.active, bool):
+            return False, "active must be a boolean value"
+        return True, None
+
+
+@dataclass
+class SubscriptionUpdateResponseDTO(BaseDTO):
+    """FCM 구독 상태 변경 응답 DTO"""
+
+    message: str
+    updated_count: int
+    student_no: str
+    active: bool

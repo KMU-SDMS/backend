@@ -4,15 +4,13 @@ import uuid
 from typing import Any, Dict, Tuple
 from datetime import datetime
 import boto3
-from src.utils.cognito_auth import is_admin_group, is_common_user_group
 
 S3 = boto3.client("s3")
 
 
-def _load_env(
-    user_info: Dict[str, Any] = {"groups": [], "token_use": "default"}
-) -> Tuple[str, set[str], int, str, str]:
+def _load_env() -> Tuple[str, set[str], int, str, str]:
     """Load bucket from environment and return hardcoded config for the rest."""
+<<<<<<< HEAD
     try:
         bucket = os.environ["BILL_BUCKET_NAME"]
         allowed = {
@@ -39,6 +37,23 @@ def _load_env(
         return bucket, allowed, expires, key_prefix, allow_origin
     except Exception as e:
         raise e
+=======
+    bucket = os.environ["BILL_BUCKET_NAME"]
+    allowed = {
+        "image/jpeg",
+        "image/jpg",
+        "image/png",
+        "image/gif",
+        "image/webp",
+        "image/bmp",
+        "image/tiff",
+        "image/svg+xml",
+    }
+    expires = 300
+    key_prefix = "bills"
+    allow_origin = "*"
+    return bucket, allowed, expires, key_prefix, allow_origin
+>>>>>>> 54aa9434cf3737d72ed2234c570cb22692745434
 
 
 def create_presigned_put_url(
@@ -48,10 +63,9 @@ def create_presigned_put_url(
     bill_type: str,
     year: str,
     month: str,
-    user_info: Dict[str, Any],
 ) -> Tuple[Dict[str, Any] | None, str | None]:
     try:
-        bucket, allowed, expires, key_prefix, allow_origin = _load_env(user_info)
+        bucket, allowed, expires, key_prefix, allow_origin = _load_env()
 
         if allowed and content_type not in allowed:
             return None, f"contentType '{content_type}' not allowed"
@@ -61,6 +75,7 @@ def create_presigned_put_url(
         if bill_type not in valid_types:
             return None, f"Invalid bill type. Must be one of: {', '.join(valid_types)}"
 
+        # Create S3 key with roomId and type: bills/{roomId}/{type}
         key = f"{key_prefix}/{year}/{month}/{room_id}/{bill_type}"
 
         url = S3.generate_presigned_url(
@@ -100,7 +115,7 @@ def get_bill_image(
     """
     try:
         bucket, allowed, expires, key_prefix, allow_origin = _load_env()
-        key_prefix = "bills"
+
         # S3 prefix 생성: bills/{year}/{month}/{room_id}/{bill_type} (파일명으로 사용)
         prefix = f"{key_prefix}/{year}/{month}/{room_id}/{bill_type}"
 
@@ -132,6 +147,7 @@ def get_bill_image(
 
     except Exception as e:
         return None, str(e)
+<<<<<<< HEAD
 
 
 def get_paid_bill_image(
@@ -160,3 +176,5 @@ def get_paid_bill_image(
         return result, None
     except Exception as e:
         return None, str(e)
+=======
+>>>>>>> 54aa9434cf3737d72ed2234c570cb22692745434
