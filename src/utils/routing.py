@@ -22,6 +22,7 @@ ROUTE_OVERRIDES: Dict[Tuple[str, str], Tuple[str, str]] = {
     ("GET", "student"): ("students_handler", "get_by_student_no"),
     ("POST", "bill/presign"): ("bill_handler", "presign"),
     ("GET", "bill/image"): ("bill_handler", "get_image"),
+    ("GET", "bill/paid/image"): ("bill_handler", "get_paid_bill_image"),
     ("POST", "subscriptions"): ("subscriptions_handler", "create_subscription_handler"),
     ("GET", "subscriptions/status"): (
         "subscriptions_handler",
