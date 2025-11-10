@@ -111,3 +111,16 @@ def is_common_user_group(user_info: Dict[str, Any]) -> bool:
 
 def is_admin_group(user_info: Dict[str, Any]) -> bool:
     return "admin" in user_info.get("groups") and user_info.get("token_use") == "access"
+
+
+def is_admin_group_from_access_token(access_token: str) -> bool:
+    user_info = get_user_info(access_token)
+    return "admin" in user_info.get("groups") and user_info.get("token_use") == "access"
+
+
+def is_common_user_group_from_access_token(access_token: str) -> bool:
+    user_info = get_user_info(access_token)
+    return (
+        "common_user" in user_info.get("groups")
+        and user_info.get("token_use") == "access"
+    )
