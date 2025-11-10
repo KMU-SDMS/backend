@@ -59,6 +59,7 @@ provider:
         - "PUT"
         - "DELETE"
         - "OPTIONS"
+        - "PATCH"
       allowCredentials: true
       maxAge: 86400
   environment:
@@ -70,14 +71,15 @@ provider:
     FCM_SERVICE_ACCOUNT_PATH: ${file(envs/config.${self:provider.stage}.json):FCM_SERVICE_ACCOUNT_PATH}
     FCM_PROJECT_ID: ${file(envs/config.${self:provider.stage}.json):FCM_PROJECT_ID}
     WEBHOOK_SECRET: ${file(envs/config.${self:provider.stage}.json):WEBHOOK_SECRET}
-    COGNITO_DOMAIN: ${file(envs/config.${self:provider.stage}.json):COGNITO_DOMAIN}
-    COGNITO_CLIENT_ID: ${file(envs/config.${self:provider.stage}.json):COGNITO_CLIENT_ID}
-    CALLBACK_URI: ${file(envs/config.${self:provider.stage}.json):CALLBACK_URI}
     COOKIE_SECURE: ${file(envs/config.${self:provider.stage}.json):COOKIE_SECURE}
     SESSION_TABLE: ${file(envs/config.${self:provider.stage}.json):SESSION_TABLE}
     SESSION_TTL_SECONDS: ${file(envs/config.${self:provider.stage}.json):SESSION_TTL_SECONDS, 173404800}
     SESSION_COOKIE_TTL_SECONDS: ${file(envs/config.${self:provider.stage}.json):SESSION_COOKIE_TTL_SECONDS, 900}
     PERSIST_COOKIE_TTL_SECONDS: ${file(envs/config.${self:provider.stage}.json):PERSIST_COOKIE_TTL_SECONDS, 172800000}
+    COGNITO_DOMAIN: ${file(envs/config.${self:provider.stage}.json):COGNITO_DOMAIN}
+    COGNITO_CLIENT_ID: ${file(envs/config.${self:provider.stage}.json):COGNITO_CLIENT_ID}
+    CALLBACK_URI: ${file(envs/config.${self:provider.stage}.json):CALLBACK_URI}
+    COOKIE_DOMAIN: ${file(envs/config.${self:provider.stage}.json):COOKIE_DOMAIN, ''}
     ALLOWED_REDIRECT_ORIGINS: ${file(envs/config.${self:provider.stage}.json):ALLOWED_REDIRECT_ORIGINS}
     ALLOWED_LOGOUT_URLS: ${file(envs/config.${self:provider.stage}.json):ALLOWED_LOGOUT_URLS}
 
@@ -159,3 +161,18 @@ functions:
       - httpApi:
           method: any
           path: /api/{proxy+}
+
+  billOcrProcessor:
+    name: ${self:provider.stage}-bill-OCR-Processor
+    image:
+      uri: ${file(envs/config.${self:provider.stage}.json):BILL_OCR_IMAGE_URI}
+    timeout: 300
+    memorySize: 2048
+    events:
+      - s3:
+          bucket: ${file(envs/config.${self:provider.stage}.json):BILL_BUCKET_NAME}
+          event: s3:ObjectCreated:Put
+          rules:
+            - prefix: "bills/*"
+          existing: true
+          forceDeploy: true

@@ -15,6 +15,7 @@ class StudentDTO(BaseDTO):
     studentIdNum: str = ""  # studentNo → studentIdNum 변환
     roomNumber: Optional[int] = None  # room_number → roomNumber 변환
     checkInDate: Optional[str] = None  # check_in_date → checkInDate 변환
+    checkOutDate: Optional[str] = None  # check_out_date → checkOutDate 변환
 
     @classmethod
     def from_supabase_data(cls, data: dict) -> "StudentDTO":
@@ -24,6 +25,9 @@ class StudentDTO(BaseDTO):
             studentIdNum=data["studentNo"],  # studentNo → studentIdNum 변환
             roomNumber=data.get("room_number"),  # room_number → roomNumber 변환
             checkInDate=data.get("check_in_date"),  # check_in_date → checkInDate 변환
+            checkOutDate=data.get(
+                "check_out_date"
+            ),  # check_out_date → checkOutDate 변환
         )
 
 
@@ -35,6 +39,7 @@ class StudentCreateRequestDTO(BaseDTO):
     studentIdNum: str
     roomNumber: Optional[int] = None
     checkInDate: Optional[str] = None
+    checkOutDate: Optional[str] = None
 
 
 @dataclass
@@ -45,6 +50,7 @@ class StudentUpdateRequestDTO(BaseDTO):
     name: Optional[str] = None
     roomNumber: Optional[int] = None
     checkInDate: Optional[str] = None
+    checkOutDate: Optional[str] = None
 
 
 @dataclass

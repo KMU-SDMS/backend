@@ -14,12 +14,14 @@ logger.setLevel(logging.INFO)
 
 def create_subscription(
     request_dto: SubscriptionCreateRequestDTO,
+    student_no: str,
 ) -> Tuple[Optional[SubscriptionDTO], Optional[str]]:
     """
     FCM 구독을 생성하거나 업데이트합니다.
 
     Args:
-        request_dto: 구독 생성 요청 DTO
+        request_dto: 구독 생성 요청 DTO (fcm_token, platform)
+        student_no: 학번 (세션에서 추출된 값)
 
     Returns:
         (SubscriptionDTO, 에러 메시지)
@@ -30,7 +32,7 @@ def create_subscription(
             return None, "Supabase client could not be initialized."
 
         logger.info(
-            f"FCM 구독 생성/업데이트: fcm_token={request_dto.fcm_token[:20]}..."
+            f"FCM 구독 생성/업데이트: student_no={student_no}, fcm_token={request_dto.fcm_token[:20]}..."
         )
 
         # 데이터 검증
@@ -41,7 +43,7 @@ def create_subscription(
         # UPSERT로 중복 방지 (fcm_token UNIQUE 제약 활용)
         insert_data = {
             "fcm_token": request_dto.fcm_token,
-            "student_no": request_dto.student_no,
+            "student_no": student_no,
             "platform": request_dto.platform,
             "is_active": True,
         }
@@ -160,3 +162,62 @@ def deactivate_invalid_subscription(subscription_id: int) -> Tuple[bool, Optiona
         logger.error(f"❌ 구독 비활성화 실패: {e}")
         error_message = getattr(e, "message", str(e))
         return False, error_message
+
+
+def update_all_subscriptions_active_by_student_no(
+    student_no: str,
+    active: bool,
+) -> Tuple[int, Optional[str]]:
+    """
+    특정 학생의 모든 구독의 활성 상태를 변경합니다.
+
+    Args:
+        student_no: 학번
+        active: 활성화 상태 (True: 활성화, False: 비활성화)
+
+    Returns:
+        (변경된 구독 개수, 에러 메시지)
+    """
+    try:
+        supabase = get_supabase_client("notify")
+        if not supabase:
+            return 0, "Supabase client could not be initialized."
+
+        action = "활성화" if active else "비활성화"
+        logger.info(f"학생 {student_no}의 모든 구독 {action} 시작")
+
+        # 해당 학번의 모든 구독 조회 (현재 상태와 관계없이)
+        select_response = (
+            supabase.postgrest.schema("notify")
+            .from_("subscriptions")
+            .select("id", count="exact")
+            .eq("student_no", student_no)
+            .execute()
+        )
+
+        total_count = select_response.count or 0
+
+        if total_count == 0:
+            logger.info(f"⚠️ 학생 {student_no}의 구독이 없습니다.")
+            return 0, None
+
+        # 현재 상태와 다른 구독만 업데이트
+        current_status = not active  # 반대 상태
+        update_response = (
+            supabase.postgrest.schema("notify")
+            .from_("subscriptions")
+            .update({"is_active": active})
+            .eq("student_no", student_no)
+            .eq("is_active", current_status)
+            .execute()
+        )
+
+        updated_count = len(update_response.data) if update_response.data else 0
+
+        logger.info(f"✅ 학생 {student_no}의 구독 {updated_count}개 {action} 완료")
+        return updated_count, None
+
+    except Exception as e:
+        logger.error(f"❌ 구독 상태 변경 실패: {e}")
+        error_message = getattr(e, "message", str(e))
+        return 0, error_message

@@ -61,3 +61,6 @@ layer/
 
 *.b64
 encode.py
+
+output/
+.test.json

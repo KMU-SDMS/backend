@@ -13,6 +13,8 @@ MODULE_MAP: Dict[str, str] = {
     "bill": "bill_handler",
     "subscriptions": "subscriptions_handler",
     "notifications": "notifications_handler",
+    "overnight-stay": "overnight_stays_handler",
+    "overnight-stays": "overnight_stays_handler",
 }
 
 # 2) 예외 라우팅: (METHOD, path_after_api)
@@ -20,15 +22,25 @@ ROUTE_OVERRIDES: Dict[Tuple[str, str], Tuple[str, str]] = {
     ("GET", "student"): ("students_handler", "get_by_student_no"),
     ("POST", "bill/presign"): ("bill_handler", "presign"),
     ("GET", "bill/image"): ("bill_handler", "get_image"),
+    ("GET", "bill/paid/image"): ("bill_handler", "get_paid_bill_image"),
     ("POST", "subscriptions"): ("subscriptions_handler", "create_subscription_handler"),
     ("GET", "subscriptions/status"): (
         "subscriptions_handler",
         "get_subscription_status_handler",
     ),
+    ("PATCH", "subscriptions"): (
+        "subscriptions_handler",
+        "patch_subscription_handler",
+    ),
     ("POST", "notifications"): (
         "notifications_handler",
         "send_notification_handler",
     ),
+    ("POST", "notifications/individual"): (
+        "notifications_handler",
+        "send_individual_notification_handler",
+    ),
+    ("GET", "notices/filter"): ("notices_handler", "filter"),
 }
 
 # 3) 기본 함수 규칙: (METHOD, resource) → function name
@@ -49,6 +61,10 @@ DEFAULT_FUNC_RULES: Dict[Tuple[str, str], str] = {
     ("POST", "student"): "create",
     ("PUT", "student"): "update",
     ("DELETE", "student"): "delete",
+    ("POST", "overnight-stay"): "create",
+    ("GET", "overnight-stay"): "get_student_requests",
+    ("GET", "overnight-stays"): "get_admin_requests",
+    ("PATCH", "overnight-stays"): "update_status",
 }
 
 

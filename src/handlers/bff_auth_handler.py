@@ -12,7 +12,8 @@ from typing import Dict
 from src.utils.session_store import (
     put_session,
     delete_session,
-    build_user_agent_ip_hash,
+    build_user_agent_hash,
+    validate_session_security,
 )
 
 
@@ -127,6 +128,48 @@ def _get_cookie_map(cookie_header: str) -> Dict[str, str]:
 
 
 def login(event, context):
+
+    # 1. 쿠키에서 기존 세션 ID 확인
+    headers_in = event.get("headers") or {}
+    cookie_header = headers_in.get("cookie") or headers_in.get("Cookie") or ""
+    cookies_array = event.get("cookies") or []
+    if isinstance(cookies_array, list) and cookies_array:
+        extra = "; ".join(cookies_array)
+        cookie_header = f"{cookie_header}; {extra}" if cookie_header else extra
+
+    cookie_map = _get_cookie_map(cookie_header)
+    existing_sid = cookie_map.get("session")
+
+    # 2. 리다이렉트 URL 확인
+    query_params = event.get("queryStringParameters") or {}
+    redirect_param = query_params.get("redirect")
+
+    # 3. 세션 보안 검증
+    if existing_sid:
+        session_data, validation_result = validate_session_security(
+            existing_sid, headers_in, event.get("requestContext", {})
+        )
+
+        if session_data and validation_result == "valid":
+            print(f"[login] Valid session found, redirecting directly")
+            if redirect_param and _is_allowed_origin(redirect_param):
+                return {
+                    "statusCode": 302,
+                    "headers": {"Location": redirect_param},
+                    "body": "",
+                }
+            else:
+                return {"statusCode": 400, "body": "redirect_missing_or_not_allowed"}
+        elif validation_result == "session_expired":
+            print(f"[login] Session expired, redirecting to login page")
+        else:
+            # 보안 검증 실패 - 로깅
+            print(f"[login] Session validation failed: {validation_result}")
+
+    # ------------------------------------------------------------
+    # 로그인 페이지로 리다이렉트
+    # ------------------------------------------------------------
+
     # RFC 7636: code_verifier는 임의 바이트를 base64url(패딩 제거)로 인코딩한 43~128자
     code_verifier = _base64url_encode(os.urandom(32))  # 보통 43자
     code_challenge = _base64url_encode(
@@ -255,8 +298,8 @@ def callback(event, context):
     sid = _base64url_encode(secrets.token_bytes(24))
 
     ua = headers_in.get("user-agent", "")
-    ip = (event.get("requestContext") or {}).get("http", {}).get("sourceIp", "")
-    ua_hash = build_user_agent_ip_hash(ua, ip)
+    # ip = (event.get("requestContext") or {}).get("http", {}).get("sourceIp", "")
+    ua_hash = build_user_agent_hash(ua)
 
     expires_at = int(time.time()) + expires_in
     put_session(
@@ -265,7 +308,7 @@ def callback(event, context):
         refresh_token=refresh_token,
         expires_at=expires_at,
         ua_hash=ua_hash,
-        ip=ip,
+        # ip=ip,
     )
 
     set_cookie_headers: list[tuple[str, str]] = []

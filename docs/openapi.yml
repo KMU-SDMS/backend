@@ -138,6 +138,7 @@ paths:
               studentIdNum: "20243105"
               roomNumber: 101
               checkInDate: "2024-02-26"
+              checkOutDate: "2024-08-31"
       responses:
         "201":
           description: 학생이 성공적으로 생성되었습니다.
@@ -174,6 +175,7 @@ paths:
               name: "이현구"
               roomNumber: 101
               checkInDate: "2024-02-27"
+              checkOutDate: "2024-08-31"
       responses:
         "200":
           description: 학생 정보가 성공적으로 수정되었습니다.
@@ -243,10 +245,182 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
+  /api/overnight-stay:
+    post:
+      summary: 외박 신청 생성
+      description: 학생이 외박을 신청합니다. 학기당 승인된 외박은 최대 3회까지 허용되며, 동시에 하나의 대기중 신청만 존재할 수 있습니다. 학번은 세션 정보에서 자동으로 추출됩니다.
+      tags:
+        - OvernightStays
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OvernightStayCreateRequest"
+            example:
+              startDate: "2025-11-24"
+              endDate: "2025-11-25"
+              reason: "청소 점호 탈주"
+              semester: "2025-2"
+      responses:
+        "201":
+          description: 외박 신청이 생성되었습니다.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OvernightStay"
+        "400":
+          description: 잘못된 요청 (학기당 제한 초과, 날짜 오류 등)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: 학생을 찾을 수 없음
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: 서버 내부 오류
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+    get:
+      summary: 내 외박 신청 내역 조회
+      description: 학생이 현재 학기의 외박 신청 내역과 요약 정보를 조회합니다. 학번은 세션 정보에서 자동으로 추출됩니다.
+      tags:
+        - OvernightStays
+      parameters: []
+      responses:
+        "200":
+          description: 외박 신청 목록과 요약 정보가 반환되었습니다.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OvernightStayStudentList"
+        "400":
+          description: 잘못된 요청 (필수 파라미터 누락 등)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: 학생을 찾을 수 없음
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: 서버 내부 오류
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/overnight-stays:
+    get:
+      summary: 외박 신청 목록 조회 (사감용)
+      description: 사감이 외박 신청 목록을 조회합니다. 학기와 학번으로 필터링할 수 있으며 페이지네이션을 지원합니다.
+      tags:
+        - OvernightStays
+      parameters:
+        - name: semester
+          in: query
+          required: false
+          description: 학기 필터 (2025-2)
+          schema:
+            type: string
+        - name: studentIdNum
+          in: query
+          required: false
+          description: 학번 필터
+          schema:
+            type: string
+        - name: page
+          in: query
+          required: false
+          description: 페이지 번호 (기본값 1)
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: pageSize
+          in: query
+          required: false
+          description: 페이지 크기 (기본값 10)
+          schema:
+            type: integer
+            minimum: 1
+            default: 10
+      responses:
+        "200":
+          description: 외박 신청 목록이 반환되었습니다.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OvernightStayAdminList"
+        "400":
+          description: 잘못된 요청 (페이지 번호/크기 오류 등)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: 서버 내부 오류
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+    patch:
+      summary: 외박 신청 승인/거부
+      description: 사감이 외박 신청을 승인하거나 거부합니다.
+      tags:
+        - OvernightStays
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OvernightStayStatusUpdateRequest"
+            example:
+              id: 1
+              status: "approved"
+      responses:
+        "200":
+          description: 외박 신청 상태가 업데이트되었습니다.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OvernightStay"
+        "400":
+          description: 잘못된 요청 (허용되지 않은 상태 값 등)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: 외박 신청을 찾을 수 없음
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: 서버 내부 오류
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
   /api/notices:
     get:
       summary: 공지사항 목록 조회 (페이지네이션)
-      description: 페이지네이션을 통해 공지사항 목록을 조회합니다. 페이지당 10개의 공지사항을 반환합니다.
+      description: |
+        페이지네이션을 통해 공지사항 목록을 조회합니다. 페이지당 10개의 공지사항을 반환합니다.
+        기본적으로 PUBLISHED 상태의 공지사항만 반환됩니다.
       tags:
         - Notices
       parameters:
@@ -265,9 +439,134 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/Notice"
+                type: object
+                properties:
+                  notices:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Notice"
+                  page_info:
+                    $ref: "#/components/schemas/PageInfo"
+        "500":
+          description: 서버 내부 오류
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/notices/filter:
+    get:
+      summary: 공지사항 필터링 및 정렬 조회
+      description: 다양한 조건으로 공지사항을 필터링하고 정렬하여 페이지네이션으로 조회합니다.
+      tags:
+        - Notices
+      parameters:
+        - name: status
+          in: query
+          description: |
+            공지사항 상태 (여러 개 선택 가능)
+            - 여러 개 선택 방법 1: 같은 파라미터를 여러 번 사용 (?status=DRAFT&status=SCHEDULED)
+            - 여러 개 선택 방법 2 (스웨거에서 불가): 쉼표로 구분 (?status=DRAFT,SCHEDULED)
+          required: false
+          schema:
+            type: array
+            items:
+              type: string
+              enum: [DRAFT, SCHEDULED, PUBLISHED]
+          style: form
+          explode: true
+          allowEmptyValue: false
+          examples:
+            single:
+              summary: 단일 상태
+              value: PUBLISHED
+            multiple_repeated:
+              summary: 여러 상태 (반복 파라미터)
+              value:
+                - DRAFT
+                - SCHEDULED
+        - name: is_important
+          in: query
+          description: 중요 공지 여부
+          required: false
+          schema:
+            type: boolean
+          example: true
+        - name: start_date
+          in: query
+          description: 검색 시작일 (YYYY-MM-DD)
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: end_date
+          in: query
+          description: 검색 종료일 (YYYY-MM-DD)
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: year
+          in: query
+          description: 특정 연도
+          required: false
+          schema:
+            type: integer
+        - name: month
+          in: query
+          description: 특정 월
+          required: false
+          schema:
+            type: integer
+        - name: day
+          in: query
+          description: 특정 일
+          required: false
+          schema:
+            type: integer
+        - name: sort
+          in: query
+          description: 정렬 순서
+          required: false
+          schema:
+            type: string
+            enum: [latest, oldest]
+            default: "latest"
+        - name: page
+          in: query
+          description: 페이지 번호
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: search
+          in: query
+          description: 검색어 (제목 또는 내용에서 검색)
+          required: false
+          schema:
+            type: string
+          example: "장학금"
+      responses:
+        "200":
+          description: 성공적으로 필터링된 공지사항 목록을 반환했습니다.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  notices:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Notice"
+                  page_info:
+                    $ref: "#/components/schemas/PageInfo"
+        "400":
+          description: 잘못된 요청 (유효하지 않은 파라미터)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
         "500":
           description: 서버 내부 오류
           content:
@@ -330,6 +629,7 @@ paths:
               title: "정전 안내"
               content: "9월 20일 오전 10시에 정전 예정입니다."
               is_important: true
+              status: "PUBLISHED"
       responses:
         "201":
           description: 공지사항이 성공적으로 생성되었습니다.
@@ -605,7 +905,9 @@ paths:
   /api/subscriptions:
     post:
       summary: FCM 구독 생성
-      description: FCM 토큰을 등록하여 푸시 알림을 받을 수 있도록 구독합니다.
+      description: |
+        FCM 토큰을 등록하여 푸시 알림을 받을 수 있도록 구독합니다.
+        학번(student_no)은 로그인된 사용자 세션에서 자동으로 추출됩니다.
       tags:
         - Notifications
       requestBody:
@@ -616,8 +918,7 @@ paths:
               $ref: "#/components/schemas/SubscriptionCreateRequest"
             example:
               fcm_token: "fcm_token_example_12345"
-              student_no: "20243105"
-              platform: "ios"
+              platform: "web"
       responses:
         "200":
           description: 구독이 성공적으로 생성되었습니다.
@@ -627,6 +928,54 @@ paths:
                 $ref: "#/components/schemas/Subscription"
         "400":
           description: 잘못된 요청 (필수 필드 누락 또는 형식 오류)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: 인증 실패 (로그인 필요)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: 서버 내부 오류
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+    patch:
+      summary: FCM 구독 활성/비활성 상태 변경
+      description: |
+        로그인된 사용자의 모든 FCM 구독의 활성 상태를 변경합니다.
+        학번(student_no)은 세션 정보에서 자동으로 추출됩니다.
+        해당 학생의 모든 구독이 요청한 active 상태로 변경됩니다.
+      tags:
+        - Notifications
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubscriptionUpdateRequest"
+            example:
+              active: false
+      responses:
+        "200":
+          description: 구독 상태가 성공적으로 변경되었습니다.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SubscriptionUpdateResponse"
+        "400":
+          description: 잘못된 요청 (필수 필드 누락 또는 형식 오류)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: 인증 실패 (로그인 필요)
           content:
             application/json:
               schema:
@@ -714,6 +1063,42 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
+  /api/notifications/individual:
+    post:
+      summary: 개인 알림 발송
+      description: 특정 학생에게 개인 알림을 발송합니다. 학생이 여러 기기를 가진 경우 모든 활성 기기로 발송됩니다.
+      tags:
+        - Notifications
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PersonalNotificationRequest"
+            example:
+              student_no: "20243105"
+              title: "개인 알림"
+              content: "청구서 확인 부탁드립니다."
+      responses:
+        "200":
+          description: 알림이 성공적으로 발송되었습니다.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PersonalNotificationResult"
+        "400":
+          description: 잘못된 요청 (필수 필드 누락 또는 형식 오류)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: 서버 내부 오류
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
   /api/webhook/notify:
     post:
       summary: Supabase 웹훅 (내부용)
@@ -758,7 +1143,7 @@ paths:
   /api/bill/presign:
     post:
       summary: 관리비 고지서 업로드 URL 발급
-      description: S3에 관리비 고지서 이미지를 업로드하기 위한 임시 presigned URL을 발급합니다. 발급된 URL은 5분간 유효합니다.
+      description: S3에 관리비 고지서 이미지를 업로드하기 위한 임시 presigned URL을 발급합니다. 발급된 URL은 5분간 유효합니다. 관리자가 요청할시 관리비 고지서 업로드 URL이 발급됩니다. 학생이 요청할시 관리비 납부 완료 업로드 URL이 발급됩니다.  
       tags:
         - Bills
       requestBody:
@@ -803,10 +1188,10 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
-
+  
   /api/bill/image:
     get:
-      summary: 관리비 고지서 이미지 조회
+      summary:  관리비 고지서 이미지 조회, 관리자, 학생 조회 가능
       description: 저장된 관리비 고지서 이미지를 조회하기 위한 임시 다운로드 URL을 발급합니다. 발급된 URL은 5분간 유효합니다.
       tags:
         - Bills
@@ -840,6 +1225,84 @@ paths:
           schema:
             type: string
           example: "9"
+      responses:
+        "200":
+          description: 이미지 정보가 성공적으로 반환되었습니다.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BillImageResponse"
+        "400":
+          description: 잘못된 요청 (필수 쿼리 파라미터 누락 또는 유효하지 않은 값)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              examples:
+                missingParam:
+                  value:
+                    error: "roomId is required."
+                invalidType:
+                  value:
+                    error: "Invalid bill type. Must be one of: water, electricity, gas"
+        "404":
+          description: 이미지를 찾을 수 없음
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "No image found for the specified criteria."
+        "500":
+          description: 서버 내부 오류
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/bill/paid/image:
+    get:
+      summary: 관리비 납부 완료 이미지 조회
+      description: 저장된 관리비 납부 완료 이미지를 조회하기 위한 임시 다운로드 URL을 발급합니다. 발급된 URL은 5분간 유효합니다. 관리자는 학번을 파라미터로 추가하여 학생 납부 완료 이미지를 조회할 수 있습니다. 학생은 학번 파라미터를 추가하지 않고 조회하면 자신의 납부 완료 이미지를 조회할 수 있습니다.
+      tags:
+        - Bills
+      parameters:
+        - name: roomId
+          in: query
+          description: 호실 번호
+          required: true
+          schema:
+            type: string
+          example: "101"
+        - name: type
+          in: query
+          description: 관리비 유형
+          required: true
+          schema:
+            type: string
+            enum: [water, electricity, gas]
+          example: "water"
+        - name: year
+          in: query
+          description: 연도
+          required: true
+          schema:
+            type: string
+          example: "2025"
+        - name: month
+          in: query
+          description: 월
+          required: true
+          schema:
+            type: string
+          example: "9"
+        - name: studentNo
+          in: query
+          description: 학생 번호
+          required: false
+          schema:
+            type: string
+            example: "20243105"
       responses:
         "200":
           description: 이미지 정보가 성공적으로 반환되었습니다.
@@ -954,7 +1417,7 @@ components:
       in: header
       name: X-Webhook-Secret
       description: 웹훅 인증을 위한 시크릿 키
-  
+
   schemas:
     Room:
       type: object
@@ -1010,6 +1473,11 @@ components:
           format: date
           description: 입사 날짜 (YYYY-MM-DD 형식)
           example: "2024-09-01"
+        checkOutDate:
+          type: string
+          format: date
+          description: 퇴사 날짜 (YYYY-MM-DD 형식)
+          example: "2025-02-28"
         createdAt:
           type: string
           format: date-time
@@ -1040,6 +1508,11 @@ components:
           format: date
           description: 입사 날짜 (YYYY-MM-DD 형식, 선택사항)
           example: "2024-02-26"
+        checkOutDate:
+          type: string
+          format: date
+          description: 퇴사 날짜 (YYYY-MM-DD 형식, 선택사항)
+          example: "2024-08-31"
 
     StudentUpdateRequest:
       type: object
@@ -1064,6 +1537,174 @@ components:
           format: date
           description: 입사 날짜 (YYYY-MM-DD 형식, 선택사항)
           example: "2024-02-27"
+        checkOutDate:
+          type: string
+          format: date
+          description: 퇴사 날짜 (YYYY-MM-DD 형식, 선택사항)
+          example: "2024-08-31"
+
+    OvernightStay:
+      type: object
+      description: 외박 신청 정보
+      properties:
+        id:
+          type: integer
+          description: 외박 신청 ID
+          example: 1
+        studentIdNum:
+          type: string
+          description: 학번
+          example: "20201234"
+        studentName:
+          type: string
+          description: 학생 이름 (사감용 목록에서 제공)
+          example: "홍길동"
+        roomNumber:
+          type: integer
+          description: 호실 번호 (사감용 목록에서 제공)
+          example: 301
+        startDate:
+          type: string
+          format: date
+          description: 외박 시작일
+          example: "2024-12-25"
+        endDate:
+          type: string
+          format: date
+          description: 외박 종료일
+          example: "2024-12-26"
+        reason:
+          type: string
+          description: 외박 사유
+          example: "가족 행사 참석"
+        status:
+          type: string
+          description: 신청 상태
+          enum: [pending, approved, rejected]
+          example: "pending"
+        semester:
+          type: string
+          description: 학기 정보 (2024-2)
+          example: "2024-2"
+        createdAt:
+          type: string
+          format: date-time
+          description: 신청 생성일시
+          example: "2024-11-06T14:30:00Z"
+
+    OvernightStayCreateRequest:
+      type: object
+      description: 외박 신청 생성 요청
+      required:
+        - startDate
+        - endDate
+        - reason
+        - semester
+      properties:
+        startDate:
+          type: string
+          format: date
+          description: 외박 시작일
+          example: "2024-12-25"
+        endDate:
+          type: string
+          format: date
+          description: 외박 종료일
+          example: "2024-12-26"
+        reason:
+          type: string
+          description: 외박 사유
+          example: "가족 행사 참석"
+        semester:
+          type: string
+          description: 학기 정보 (2024-2)
+          example: "2024-2"
+
+    OvernightStaySummary:
+      type: object
+      description: 외박 신청 요약 정보
+      properties:
+        currentSemester:
+          type: string
+          description: 현재 학기
+          example: "2024-2"
+        approvedCount:
+          type: integer
+          description: 승인된 외박 횟수
+          example: 1
+        remainingCount:
+          type: integer
+          description: 남은 외박 가능 횟수
+          example: 2
+
+    OvernightStayStudentList:
+      type: object
+      description: 학생용 외박 신청 목록 응답
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/OvernightStay"
+        summary:
+          $ref: "#/components/schemas/OvernightStaySummary"
+
+    OvernightStayPageInfo:
+      type: object
+      description: 외박 신청 페이지 정보
+      properties:
+        page:
+          type: integer
+          description: 현재 페이지 번호
+          example: 1
+        pageSize:
+          type: integer
+          description: 페이지 크기
+          example: 10
+        totalItems:
+          type: integer
+          description: 전체 데이터 수
+          example: 25
+        totalPages:
+          type: integer
+          description: 전체 페이지 수
+          example: 3
+
+    OvernightStayAdminList:
+      type: object
+      description: 사감용 외박 신청 목록 응답
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/OvernightStay"
+        pageInfo:
+          $ref: "#/components/schemas/OvernightStayPageInfo"
+        total:
+          type: integer
+          description: 전체 신청 건수
+          example: 3
+
+    OvernightStayStatusUpdateRequest:
+      type: object
+      description: 외박 신청 상태 변경 요청
+      required:
+        - id
+        - status
+      properties:
+        id:
+          type: integer
+          description: 외박 신청 ID
+          example: 1
+        status:
+          type: string
+          description: 변경할 상태 (approved 또는 rejected)
+          enum: [approved, rejected]
+          example: "approved"
+        checkOutDate:
+          type: string
+          format: date
+          description: 퇴사 날짜 (YYYY-MM-DD 형식, 선택사항)
+          example: "2024-08-31"
 
     Notice:
       type: object
@@ -1090,6 +1731,11 @@ components:
           type: boolean
           description: 중요 공지 여부
           example: true
+        status:
+          type: string
+          description: 게시 상태
+          enum: [DRAFT, SCHEDULED, PUBLISHED]
+          example: "PUBLISHED"
 
     NoticeCreateRequest:
       type: object
@@ -1111,6 +1757,12 @@ components:
           description: 중요 공지 여부
           default: false
           example: true
+        status:
+          type: string
+          description: 게시 상태
+          enum: [DRAFT, SCHEDULED, PUBLISHED]
+          default: "PUBLISHED"
+          example: "PUBLISHED"
 
     Calendar:
       type: object
@@ -1198,6 +1850,23 @@ components:
           description: 에러 메시지
           example: "Invalid request parameters"
 
+    PageInfo:
+      type: object
+      description: 페이지 정보
+      properties:
+        total_page:
+          type: integer
+          description: 전체 페이지 수
+          example: 10
+        total_notice:
+          type: integer
+          description: 전체 공지사항 수
+          example: 95
+        now_page:
+          type: integer
+          description: 현재 페이지 번호
+          example: 1
+
     Subscription:
       type: object
       description: FCM 구독 정보
@@ -1235,22 +1904,20 @@ components:
 
     SubscriptionCreateRequest:
       type: object
-      description: FCM 구독 생성 요청
+      description: |
+        FCM 구독 생성 요청
+        학번(student_no)은 로그인된 사용자 세션에서 자동으로 추출되므로 요청에 포함하지 않습니다.
       required:
         - fcm_token
-        - student_no
       properties:
         fcm_token:
           type: string
           description: FCM 토큰
           example: "fcm_token_example_12345"
-        student_no:
-          type: string
-          description: 학번
-          example: "20192762"
         platform:
           type: string
           description: 플랫폼 (기본값 web)
+          enum: [web, android, ios]
           default: "web"
           example: "web"
 
@@ -1284,6 +1951,38 @@ components:
           format: date-time
           description: 수정일시
           example: "2024-09-01T10:00:00Z"
+
+    SubscriptionUpdateRequest:
+      type: object
+      description: FCM 구독 상태 변경 요청
+      required:
+        - active
+      properties:
+        active:
+          type: boolean
+          description: 활성화 상태
+          example: false
+
+    SubscriptionUpdateResponse:
+      type: object
+      description: FCM 구독 상태 변경 응답
+      properties:
+        message:
+          type: string
+          description: 응답 메시지
+          example: "Subscription(s) updated successfully"
+        updated_count:
+          type: integer
+          description: 변경된 구독 개수
+          example: 2
+        student_no:
+          type: string
+          description: 학번
+          example: "20243105"
+        active:
+          type: boolean
+          description: 변경된 활성화 상태
+          example: false
 
     NotificationSendRequest:
       type: object
@@ -1445,6 +2144,72 @@ components:
           description: 파일 크기 (bytes)
           example: 2132
 
+    PersonalNotificationRequest:
+      type: object
+      description: 개인 알림 발송 요청
+      required:
+        - student_no
+        - title
+        - content
+      properties:
+        student_no:
+          type: string
+          description: 학번
+          example: "20243105"
+        title:
+          type: string
+          description: 알림 제목
+          example: "개인 알림"
+        content:
+          type: string
+          description: 알림 내용
+          example: "청구서 확인 부탁드립니다."
+
+    PersonalNotificationResult:
+      type: object
+      description: 개인 알림 발송 결과
+      properties:
+        success:
+          type: boolean
+          description: 발송 성공 여부
+          example: true
+        personal_notification_id:
+          type: integer
+          description: 개인 알림 ID
+          example: 123
+        student_no:
+          type: string
+          description: 학번
+          example: "20243105"
+        total_devices:
+          type: integer
+          description: 학생의 전체 기기 수
+          example: 3
+        success_count:
+          type: integer
+          description: 성공한 발송 수
+          example: 2
+        failure_count:
+          type: integer
+          description: 실패한 발송 수
+          example: 1
+        invalid_tokens:
+          type: array
+          items:
+            type: string
+          description: 무효한 토큰 리스트
+          example: ["token1"]
+        failed_tokens:
+          type: array
+          items:
+            type: string
+          description: 실패한 토큰 리스트
+          example: []
+        message:
+          type: string
+          description: 추가 메시지 (구독 없는 경우)
+          example: "No active subscriptions found for this student"
+
 tags:
   - name: Rooms
     description: 호실 관련 API
@@ -1460,3 +2225,5 @@ tags:
     description: FCM 푸시 알림 관련 API
   - name: Auth
     description: 인증 관련 API (스웨거에서는 동작하지 않음)
+  - name: OvernightStays
+    description: 외박 신청 관련 API
