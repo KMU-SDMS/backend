@@ -71,6 +71,9 @@ def create(event, context):
         )
 
         if error:
+            # 고정공지 개수 제한 에러는 400 Bad Request
+            if "Maximum 10 pinned notices" in error:
+                return responses.create_error_response(error, 400)
             return responses.create_error_response(error, 500)
 
         # DTO를 사용하여 응답 데이터 변환
@@ -201,6 +204,9 @@ def update(event, context):
         if error:
             if error == "Notice not found":
                 return responses.create_error_response(error, 404)
+            # 고정공지 개수 제한 에러는 400 Bad Request
+            if "Maximum 10 pinned notices" in error:
+                return responses.create_error_response(error, 400)
             return responses.create_error_response(error, 500)
 
         # DTO를 사용하여 응답 데이터 변환
