@@ -44,7 +44,10 @@ def create_subscription_handler(event, context):
                 "Unauthorized: user information not found", 401
             )
 
-        logger.info(f"📱 사용자 {username}의 FCM 구독 생성 요청")
+        # Cognito username을 대문자로 변환 (DB의 studentNo와 일치시키기 위해)
+        student_no = username.upper()
+
+        logger.info(f"📱 사용자 {student_no}의 FCM 구독 생성 요청")
 
         # 2. JSON 파싱
         try:
@@ -70,14 +73,14 @@ def create_subscription_handler(event, context):
             return create_error_response(error_msg, 400)
 
         # 5. 서비스 호출 (student_no를 별도로 전달)
-        subscription_dto, error = create_subscription(request_dto, username)
+        subscription_dto, error = create_subscription(request_dto, student_no)
         if error:
             logger.error(f"❌ 구독 생성 실패: {error}")
             return create_error_response(error, 500)
 
         # 6. 성공 응답
         logger.info(
-            f"✅ FCM 구독 생성 완료: id={subscription_dto.id}, student_no={username}"
+            f"✅ FCM 구독 생성 완료: id={subscription_dto.id}, student_no={student_no}"
         )
         return create_success_response(subscription_dto.to_dict())
 
@@ -145,6 +148,9 @@ def patch_subscription_handler(event, context):
                 "Unauthorized: user information not found", 401
             )
 
+        # Cognito username을 대문자로 변환 (DB의 studentNo와 일치시키기 위해)
+        student_no = username.upper()
+
         # 2. JSON 파싱
         try:
             body = json.loads(event.get("body", "{}"))
@@ -173,11 +179,11 @@ def patch_subscription_handler(event, context):
             return create_error_response(error_msg, 400)
 
         action = "활성화" if request_dto.active else "비활성화"
-        logger.info(f"📱 사용자 {username}의 모든 FCM 구독 {action} 요청")
+        logger.info(f"📱 사용자 {student_no}의 모든 FCM 구독 {action} 요청")
 
         # 6. 서비스 호출
         updated_count, error = update_all_subscriptions_active_by_student_no(
-            username, request_dto.active
+            student_no, request_dto.active
         )
 
         if error:
@@ -188,13 +194,13 @@ def patch_subscription_handler(event, context):
         response_dto = SubscriptionUpdateResponseDTO(
             message=f"Subscription(s) {'activated' if request_dto.active else 'deactivated'} successfully",
             updated_count=updated_count,
-            student_no=username,
+            student_no=student_no,
             active=request_dto.active,
         )
 
         # 8. 성공 응답
         logger.info(
-            f"✅ FCM 구독 상태 변경 완료: student_no={username}, updated_count={updated_count}, active={request_dto.active}"
+            f"✅ FCM 구독 상태 변경 완료: student_no={student_no}, updated_count={updated_count}, active={request_dto.active}"
         )
         return create_success_response(response_dto.to_dict())
 
