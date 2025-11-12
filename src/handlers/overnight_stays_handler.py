@@ -47,10 +47,13 @@ def create(event, context):
             return responses.create_error_response(validation_error, 400)
 
         user_info = event.get("user_info", {})
-        student_no = user_info.get("username")
-        if not student_no:
+        username = user_info.get("username")
+        if not username:
             logger.error("❌ Unauthorized request: student number missing in session")
             return responses.create_error_response("Unauthorized", 401)
+
+        # Cognito username을 대문자로 변환 (DB의 studentNo와 일치시키기 위해)
+        student_no = username.upper()
 
         result, error = overnight_stays_service.create_overnight_stay(
             student_no=student_no,
@@ -80,11 +83,14 @@ def get_student_requests(event, context):
     logger.info("✅ Processing get student overnight stays request")
 
     user_info = event.get("user_info", {})
-    student_no = user_info.get("username")
+    username = user_info.get("username")
 
-    if not student_no:
+    if not username:
         logger.error("❌ Unauthorized request: student number missing in session")
         return responses.create_error_response("Unauthorized", 401)
+
+    # Cognito username을 대문자로 변환 (DB의 studentNo와 일치시키기 위해)
+    student_no = username.upper()
 
     try:
         data, summary, error = overnight_stays_service.get_student_overnight_stays(

@@ -46,6 +46,14 @@ provider:
           Resource:
             - arn:aws:dynamodb:${self:provider.region}:${aws:accountId}:table/${self:provider.environment.SESSION_TABLE}
             - arn:aws:dynamodb:${self:provider.region}:${aws:accountId}:table/${self:provider.environment.SESSION_TABLE}/index/*
+        - Effect: Allow
+          Action:
+            - s3:ListBucket
+            - s3:GetObject
+            - s3:PutObject
+          Resource:
+            - arn:aws:s3:::${file(envs/config.${self:provider.stage}.json):BILL_BUCKET_NAME}
+            - arn:aws:s3:::${file(envs/config.${self:provider.stage}.json):BILL_BUCKET_NAME}/*
   httpApi:
     cors:
       allowedOrigins: ${file(envs/config.${self:provider.stage}.json):CORS_ORIGINS}
@@ -173,6 +181,6 @@ functions:
           bucket: ${file(envs/config.${self:provider.stage}.json):BILL_BUCKET_NAME}
           event: s3:ObjectCreated:Put
           rules:
-            - prefix: "bills/*"
+            - prefix: "bills/"
           existing: true
           forceDeploy: true
