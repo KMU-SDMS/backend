@@ -54,6 +54,12 @@ provider:
           Resource:
             - arn:aws:s3:::${file(envs/config.${self:provider.stage}.json):BILL_BUCKET_NAME}
             - arn:aws:s3:::${file(envs/config.${self:provider.stage}.json):BILL_BUCKET_NAME}/*
+        - Effect: Allow
+          Action:
+            - ecr:GetDownloadUrlForLayer
+            - ecr:BatchGetImage
+            - ecr:BatchCheckLayerAvailability
+          Resource: "*"
   httpApi:
     cors:
       allowedOrigins: ${file(envs/config.${self:provider.stage}.json):CORS_ORIGINS}
