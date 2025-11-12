@@ -182,11 +182,3 @@ functions:
       uri: ${file(envs/config.${self:provider.stage}.json):BILL_OCR_IMAGE_URI}
     timeout: 300
     memorySize: 2048
-    events:
-      - s3:
-          bucket: ${file(envs/config.${self:provider.stage}.json):BILL_BUCKET_NAME}
-          event: s3:ObjectCreated:Put
-          rules:
-            - prefix: "bills/"
-          existing: true
-          forceDeploy: true
