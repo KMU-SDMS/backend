@@ -175,10 +175,3 @@ functions:
       - httpApi:
           method: any
           path: /api/{proxy+}
-
-  billOcrProcessor:
-    name: ${self:provider.stage}-bill-OCR-Processor
-    image:
-      uri: ${file(envs/config.${self:provider.stage}.json):BILL_OCR_IMAGE_URI}
-    timeout: 300
-    memorySize: 2048

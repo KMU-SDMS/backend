@@ -191,3 +191,99 @@ def get_paid_bill_image(event, context):
     except Exception as e:
         logger.error(f"❌ get paid bill image failed: {e}")
         return responses.create_error_response("Internal server error.", 500)
+
+
+def get_bill_from_student_no(event, context):
+    """
+    GET /bill/studentNo/{studentNo}
+
+    Path Parameters:
+    - studentNo: 학생 번호 (필수)
+    """
+    if not is_admin_group(event.get("user_info")):
+        return responses.create_error_response("Unauthorized.", 401)
+
+    try:
+        query_params = event.get("queryStringParameters") or {}
+        student_no = query_params.get("studentNo")
+
+        if not student_no:
+            return responses.create_error_response("studentNo is required.", 400)
+
+        data, error = bill_service.get_bill_from_student_no(student_no)
+
+        if data is None:
+            return responses.create_error_response("Not found.", 404)
+
+        return responses.create_success_response(data)
+    except Exception as e:
+        logger.error(f"❌ get bill from student number failed: {e}")
+        return responses.create_error_response("Internal server error.", 500)
+
+
+def update_bill(event, context):
+    """
+    PATCH /bill
+    Body JSON:
+    {
+      "studentNo": "20243025",
+      "type": "water" | "electricity" | "gas",
+      "amount": 12345,               # optional
+      "bankInfo": [ { ... } ],       # optional, list of objects
+      "endDate": "2025-11-30"        # optional, YYYY-MM-DD
+      "admin_check": true             # optional, true if the bill is checked by admin
+    }
+    """
+    if not is_admin_group(event.get("user_info")):
+        return responses.create_error_response("Unauthorized.", 401)
+
+    try:
+        body = json.loads(event.get("body", "{}"))
+        student_no = body.get("studentNo")
+        bill_type = body.get("type")
+        amount = body.get("amount", None)
+        bank_info = body.get("bankInfo", None)
+        end_date = body.get("endDate", None)
+        admin_check = body.get("admin_check", None)
+        # required checks
+        if not student_no:
+            return responses.create_error_response("studentNo is required.", 400)
+        if not bill_type or bill_type not in ["water", "electricity", "gas"]:
+            return responses.create_error_response(
+                "type is required, must be one of: water, electricity, gas", 400
+            )
+
+        # at least one updatable field
+        update_payload: dict = {}
+        if amount is not None:
+            update_payload["amount"] = amount
+        if bank_info is not None:
+            update_payload["bank_info"] = bank_info
+        if end_date is not None:
+            update_payload["end_date"] = end_date
+        if admin_check is not None:
+            update_payload["admin_check"] = admin_check
+
+        if not update_payload:
+            return responses.create_error_response(
+                "At least one of amount, bankInfo, endDate, admin_check is required.",
+                400,
+            )
+
+        success, error = bill_service.update_bill_from_student_no(
+            student_no=student_no,
+            bill_data=update_payload,
+            bill_type=bill_type,
+        )
+
+        if not success:
+            if error == "Not found":
+                return responses.create_error_response("Not found.", 404)
+            return responses.create_error_response(error or "Update failed.", 500)
+
+        return responses.create_success_response({"success": True})
+    except json.JSONDecodeError:
+        return responses.create_error_response("Invalid JSON format.", 400)
+    except Exception as e:
+        logger.error(f"❌ update bill failed: {e}")
+        return responses.create_error_response("Internal server error.", 500)

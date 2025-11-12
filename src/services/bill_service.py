@@ -4,6 +4,8 @@ import uuid
 from typing import Any, Dict, Tuple
 from datetime import datetime
 import boto3
+from src.utils.supabase_client import get_supabase_client
+from src.dto.bill_dto import BillDTO, BillListDTO
 from src.utils.cognito_auth import (
     get_user_info,
     is_admin_group,
@@ -184,7 +186,7 @@ def get_paid_bill_image(
             )
         elif is_common_user_group_from_access_token(access_token):
             prefix = _get_paid_key_prefix(access_token, year, month, room_id, bill_type)
-        print(prefix)
+
         response = S3.list_objects_v2(Bucket=bucket, Prefix=prefix)
         if "Contents" in response and len(response["Contents"]) > 0:
             obj = response["Contents"][0]
@@ -204,3 +206,56 @@ def get_paid_bill_image(
         return result, None
     except Exception as e:
         return None, str(e)
+
+
+def get_bill_from_student_no(
+    student_no: str,
+) -> Tuple[Dict[str, Any] | None, str | None]:
+    """
+    Supabase에서 studentNo로 단일 학생의 관리비를 조회합니다.
+    """
+    try:
+        supabase = get_supabase_client("core")
+
+        response = (
+            supabase.postgrest.schema("core")
+            .from_("bill")
+            .select("*")
+            .eq("student_no", student_no)
+            .execute()
+        )
+        rows = response.data or []
+        if rows:
+            dto_list = BillListDTO.from_supabase_data(rows)
+            return dto_list.to_dict(), None
+        else:
+            return None, "Not found"
+    except Exception as e:
+        return None, str(e)
+
+
+def update_bill_from_student_no(
+    student_no: str,
+    bill_data: Dict[str, Any],
+    bill_type: str,
+) -> Tuple[Dict[str, Any] | None, str | None]:
+    """
+    Supabase에서 studentNo로 단일 학생의 관리비를 수정합니다.
+    """
+    try:
+        supabase = get_supabase_client("core")
+
+        response = (
+            supabase.postgrest.schema("core")
+            .from_("bill")
+            .update(bill_data)
+            .eq("student_no", student_no)
+            .eq("type", bill_type)
+            .execute()
+        )
+        if response.data:
+            return True, None
+        else:
+            return False, "Not found"
+    except Exception as e:
+        return False, str(e)
