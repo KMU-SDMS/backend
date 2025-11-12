@@ -1188,7 +1188,107 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
-  
+  /api/bill:
+    patch:
+      summary: 관리비 수정
+      description: 관리비를 수정합니다. 학생 번호와 관리비 유형을 파라미터로 추가하여 학생의 관리비의 type,amount,bankInfo,endDate를 부분적으로 수정할 수 있습니다.
+      tags:
+        - Bills
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BillUpdateRequest"
+            example:
+              studentNo: "20243105"
+              type: "water"
+              amount: 100000
+              bankInfo: [{ bank: "국민", account: "123456789012" }]
+              endDate: "2025-11-30"
+      responses:
+        "200":
+          description: 관리비가 성공적으로 수정되었습니다. true를 반환합니다.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BillResponse"
+        "400":
+          description: 잘못된 요청 (필수 필드 누락 또는 유효하지 않은 값)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: 서버 내부 오류
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: 관리비를 찾을 수 없음
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "No bill found for the specified student number."
+        "401":
+          description: 인증 실패 (관리자 권한 필요)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Unauthorized."
+  /api/bill/studentNo:
+    get:
+      summary: 학생 관리비 조회
+      description: 학생 번호로 관리비를 조회합니다.
+      tags:
+        - Bills
+      parameters:
+        - name: studentNo
+          in: query
+          description: 학생 번호
+          required: true
+          schema:
+            type: string
+          example: "20243105"
+      responses:
+        "200":
+          description: 관리비 정보가 성공적으로 반환되었습니다.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BillResponse"
+        "400":
+          description: 잘못된 요청 (필수 쿼리 파라미터 누락 또는 유효하지 않은 값)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              examples:
+                missingParam:
+                  value:
+                    error: "studentNo is required."
+                invalidType:
+                  value:
+                    error: "Invalid student number format."
+        "404":
+          description: 관리비를 찾을 수 없음
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "No bill found for the specified student number."
+        "500":
+          description: 서버 내부 오류
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
   /api/bill/image:
     get:
       summary:  관리비 고지서 이미지 조회, 관리자, 학생 조회 가능

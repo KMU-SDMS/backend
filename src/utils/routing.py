@@ -19,6 +19,8 @@ MODULE_MAP: Dict[str, str] = {
 
 # 2) 예외 라우팅: (METHOD, path_after_api)
 ROUTE_OVERRIDES: Dict[Tuple[str, str], Tuple[str, str]] = {
+    ("GET", "bill/studentNo"): ("bill_handler", "get_bill_from_student_no"),
+    ("PATCH", "bill"): ("bill_handler", "update_bill"),
     ("GET", "student"): ("students_handler", "get_by_student_no"),
     ("POST", "bill/presign"): ("bill_handler", "presign"),
     ("GET", "bill/image"): ("bill_handler", "get_image"),
