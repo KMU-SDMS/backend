@@ -181,6 +181,6 @@ functions:
           bucket: ${file(envs/config.${self:provider.stage}.json):BILL_BUCKET_NAME}
           event: s3:ObjectCreated:Put
           rules:
-            - prefix: "bills/*"
+            - prefix: "bills/"
           existing: true
           forceDeploy: true
