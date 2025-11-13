@@ -208,15 +208,26 @@ def get_paid_bill_image(
         return None, str(e)
 
 
-def get_bill_from_student_no(
-    student_no: str,
+def get_bill(
+    student_no: str | None,
+    access_token: str,
 ) -> Tuple[Dict[str, Any] | None, str | None]:
     """
-    Supabase에서 studentNo로 단일 학생의 관리비를 조회합니다.
+    관리자가 학생 번호를 입력하면 Supabase에서 studentNo로 단일 학생의 관리비를 조회합니다.
+    일반 사용자는 자신의 관리비를 조회합니다.
+
+    Args:
+        student_no: 학생 번호
+        access_token: 액세스 토큰
+
+    Returns:
+        Tuple[Dict[str, Any] | None, str | None]: (관리비 목록, 에러 메시지)
     """
     try:
-        supabase = get_supabase_client("core")
+        if student_no is None:
+            student_no = get_user_info(access_token).get("username")
 
+        supabase = get_supabase_client("core")
         response = (
             supabase.postgrest.schema("core")
             .from_("bill")
@@ -224,9 +235,9 @@ def get_bill_from_student_no(
             .eq("student_no", student_no)
             .execute()
         )
-        rows = response.data or []
-        if rows:
-            dto_list = BillListDTO.from_supabase_data(rows)
+        data = response.data
+        if data:
+            dto_list = BillListDTO.from_supabase_data(data)
             return dto_list.to_dict(), None
         else:
             return None, "Not found"

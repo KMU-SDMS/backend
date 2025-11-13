@@ -1199,7 +1199,43 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/BillUpdateRequest"
+              type: object
+              required:
+                - studentNo
+                - type
+              properties:
+                studentNo:
+                  type: string
+                  description: 학생 번호
+                  example: "20243105"
+                type:
+                  type: string
+                  description: 관리비 유형
+                  enum: [water, electricity, gas]
+                  example: "water"
+                amount:
+                  type: number
+                  description: 관리비 금액
+                  example: 100000
+                bankInfo:
+                  type: array
+                  description: 계좌 정보 목록
+                  items:
+                    type: object
+                    properties:
+                      bank:
+                        type: string
+                      account:
+                        type: string
+                endDate:
+                  type: string
+                  format: date
+                  description: 납부 마감일 (YYYY-MM-DD)
+                  example: "2025-11-30"
+                admin_check:
+                  type: boolean
+                  description: 관리자 확인 여부
+                  example: true
             example:
               studentNo: "20243105"
               type: "water"
@@ -1212,7 +1248,11 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/BillResponse"
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
         "400":
           description: 잘못된 요청 (필수 필드 누락 또는 유효하지 않은 값)
           content:
@@ -1241,17 +1281,16 @@ paths:
                 $ref: "#/components/schemas/Error"
               example:
                 error: "Unauthorized."
-  /api/bill/studentNo:
     get:
       summary: 학생 관리비 조회
-      description: 학생 번호로 관리비를 조회합니다.
+      description: 관리자는 학생 번호로 관리비를 조회합니다. 학생은 자신의 관리비를 조회합니다.
       tags:
         - Bills
       parameters:
         - name: studentNo
           in: query
           description: 학생 번호
-          required: true
+          required: false
           schema:
             type: string
           example: "20243105"
@@ -1261,7 +1300,34 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/BillResponse"
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                      nullable: true
+                    studentNo:
+                      type: string
+                    type:
+                      type: string
+                      enum: [water, electricity, gas]
+                    amount:
+                      type: number
+                      nullable: true
+                    endDate:
+                      type: string
+                      format: date
+                      nullable: true
+                    bankInfo:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          bank_name:
+                            type: string
+                          bank_number:
+                            type: string
         "400":
           description: 잘못된 요청 (필수 쿼리 파라미터 누락 또는 유효하지 않은 값)
           content:
@@ -1437,6 +1503,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+ 
 
   /auth/login:
     get:

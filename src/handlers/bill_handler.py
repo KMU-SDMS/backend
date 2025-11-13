@@ -193,25 +193,31 @@ def get_paid_bill_image(event, context):
         return responses.create_error_response("Internal server error.", 500)
 
 
-def get_bill_from_student_no(event, context):
+def get_bill(event, context):
     """
-    GET /bill/studentNo/{studentNo}
+    GET /bill?studentNo={studentNo}
 
-    Path Parameters:
-    - studentNo: 학생 번호 (필수)
+    Query Parameters:
+    - studentNo: 학생 번호 (관리자만 필요)
     """
-    if not is_admin_group(event.get("user_info")):
+    if not is_admin_group(event.get("user_info")) and not is_common_user_group(
+        event.get("user_info")
+    ):
         return responses.create_error_response("Unauthorized.", 401)
 
     try:
         query_params = event.get("queryStringParameters") or {}
         student_no = query_params.get("studentNo")
 
-        if not student_no:
+        if is_admin_group(event.get("user_info")) and not student_no:
             return responses.create_error_response("studentNo is required.", 400)
 
-        data, error = bill_service.get_bill_from_student_no(student_no)
-
+        if is_admin_group(event.get("user_info")):
+            data, error = bill_service.get_bill(student_no, event.get("access_token"))
+        elif is_common_user_group(event.get("user_info")):
+            data, error = bill_service.get_bill(None, event.get("access_token"))
+        if error:
+            return responses.create_error_response(error, 400)
         if data is None:
             return responses.create_error_response("Not found.", 404)
 
@@ -226,7 +232,7 @@ def update_bill(event, context):
     PATCH /bill
     Body JSON:
     {
-      "studentNo": "20243025",
+      "studentNo": "20243025",      # optional
       "type": "water" | "electricity" | "gas",
       "amount": 12345,               # optional
       "bankInfo": [ { ... } ],       # optional, list of objects
