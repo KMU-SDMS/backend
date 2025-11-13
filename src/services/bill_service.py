@@ -245,15 +245,20 @@ def get_bill(
         return None, str(e)
 
 
-def update_bill_from_student_no(
-    student_no: str,
+def update_bill(
+    student_no: str | None,
     bill_data: Dict[str, Any],
     bill_type: str,
+    access_token: str,
 ) -> Tuple[Dict[str, Any] | None, str | None]:
     """
     Supabase에서 studentNo로 단일 학생의 관리비를 수정합니다.
     """
     try:
+        if student_no is None:
+            student_no = get_user_info(access_token).get("username")
+            bill_data = {"is_paid": bill_data["is_paid"]}
+
         supabase = get_supabase_client("core")
 
         response = (
