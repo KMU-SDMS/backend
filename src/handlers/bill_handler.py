@@ -237,22 +237,24 @@ def update_bill(event, context):
       "amount": 12345,               # optional
       "bankInfo": [ { ... } ],       # optional, list of objects
       "endDate": "2025-11-30"        # optional, YYYY-MM-DD
-      "admin_check": true             # optional, true if the bill is checked by admin
+      "is_paid": true             # optional, true if the bill is checked by admin
     }
     """
-    if not is_admin_group(event.get("user_info")):
+    if not is_admin_group(event.get("user_info")) and not is_common_user_group(
+        event.get("user_info")
+    ):
         return responses.create_error_response("Unauthorized.", 401)
 
     try:
         body = json.loads(event.get("body", "{}"))
-        student_no = body.get("studentNo")
+        student_no = body.get("studentNo", None)
         bill_type = body.get("type")
         amount = body.get("amount", None)
         bank_info = body.get("bankInfo", None)
         end_date = body.get("endDate", None)
-        admin_check = body.get("admin_check", None)
+        is_paid = body.get("is_paid", None)
         # required checks
-        if not student_no:
+        if is_admin_group(event.get("user_info")) and not student_no:
             return responses.create_error_response("studentNo is required.", 400)
         if not bill_type or bill_type not in ["water", "electricity", "gas"]:
             return responses.create_error_response(
@@ -267,19 +269,20 @@ def update_bill(event, context):
             update_payload["bank_info"] = bank_info
         if end_date is not None:
             update_payload["end_date"] = end_date
-        if admin_check is not None:
-            update_payload["admin_check"] = admin_check
+        if is_paid is not None:
+            update_payload["is_paid"] = is_paid
 
         if not update_payload:
             return responses.create_error_response(
-                "At least one of amount, bankInfo, endDate, admin_check is required.",
+                "At least one of amount, bankInfo, endDate, is_paid is required.",
                 400,
             )
 
-        success, error = bill_service.update_bill_from_student_no(
+        success, error = bill_service.update_bill(
             student_no=student_no,
             bill_data=update_payload,
             bill_type=bill_type,
+            access_token=event.get("access_token"),
         )
 
         if not success:

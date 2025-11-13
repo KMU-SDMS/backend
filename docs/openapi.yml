@@ -1191,7 +1191,7 @@ paths:
   /api/bill:
     patch:
       summary: 관리비 수정
-      description: 관리비를 수정합니다. 학생 번호와 관리비 유형을 파라미터로 추가하여 학생의 관리비의 type,amount,bankInfo,endDate를 부분적으로 수정할 수 있습니다.
+      description: 관리비를 수정합니다. 관리비 유형(`type`)은 필수이며, `amount`, `bankInfo`, `endDate`, `is_paid`는 선택적으로 부분 수정할 수 있습니다. 관리자는 학생 번호(`studentNo`)를 body에 추가하여 학생의 관리비를 수정할 수 있습니다. 학생은 학생 번호(`studentNo`)를 body에 추가하지 않고 조회하면 자신의 관리비를 수정할 수 있습니다. 또한 학생은 요청 본문에 `type`과 `is_paid`만 포함하여 본인의 납부 상태(`is_paid`)만 수정할 수 있습니다.
       tags:
         - Bills
       requestBody:
@@ -1201,7 +1201,6 @@ paths:
             schema:
               type: object
               required:
-                - studentNo
                 - type
               properties:
                 studentNo:
@@ -1232,7 +1231,7 @@ paths:
                   format: date
                   description: 납부 마감일 (YYYY-MM-DD)
                   example: "2025-11-30"
-                admin_check:
+                is_paid:
                   type: boolean
                   description: 관리자 확인 여부
                   example: true
@@ -1242,6 +1241,7 @@ paths:
               amount: 100000
               bankInfo: [{ bank: "국민", account: "123456789012" }]
               endDate: "2025-11-30"
+              is_paid: true
       responses:
         "200":
           description: 관리비가 성공적으로 수정되었습니다. true를 반환합니다.
