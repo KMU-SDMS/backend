@@ -17,6 +17,7 @@ class BillDTO(BaseDTO):
     amount: Optional[float]
     endDate: Optional[str]  # YYYY-MM-DD
     bankInfo: Optional[list[dict[str, Optional[str]]]]
+    is_paid: Optional[bool]
 
     @classmethod
     def from_supabase_data(cls, data: dict) -> "BillDTO":
@@ -30,6 +31,7 @@ class BillDTO(BaseDTO):
                 str(data.get("end_date")) if data.get("end_date") is not None else None
             ),
             bankInfo=data.get("bank_info"),
+            is_paid=data.get("is_paid"),
         )
 
 
