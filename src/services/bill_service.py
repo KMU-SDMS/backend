@@ -2,8 +2,8 @@ import json
 import os
 import uuid
 from typing import Any, Dict, Tuple
-from datetime import datetime
 import boto3
+from botocore.exceptions import ClientError
 from src.utils.supabase_client import get_supabase_client
 from src.dto.bill_dto import BillDTO, BillListDTO
 from src.utils.cognito_auth import (
@@ -135,38 +135,42 @@ def get_bill_image(
     try:
         bucket, allowed, expires, allow_origin = _load_env()
 
-        # S3 prefix 생성: bills/{year}/{month}/{room_id}/{bill_type} (파일명으로 사용)
-        key_prefix = "bills"
-        prefix = f"{key_prefix}/{year}/{month}/{room_id}/{bill_type}"
+        # S3 key 생성: bills/{year}/{month}/{room_id}/{bill_type}
+        key = f"bills/{year}/{month}/{room_id}/{bill_type}"
 
-        # S3에서 객체 목록 조회
-        response = S3.list_objects_v2(Bucket=bucket, Prefix=prefix)
+        # head_object로 파일 존재 확인 (list_objects_v2보다 빠름, 메타데이터만 가져옴)
 
-        # bill_type으로 시작하는 파일 중에서 정확한 매칭 찾기
-        if "Contents" in response and len(response["Contents"]) > 0:
-            obj = response["Contents"][0]
+        response = S3.head_object(Bucket=bucket, Key=key)
 
-            # presigned GET URL 생성
-            get_url = S3.generate_presigned_url(
-                ClientMethod="get_object",
-                Params={"Bucket": bucket, "Key": obj["Key"]},
-                ExpiresIn=expires,
-            )
+        # 파일이 존재하면 presigned URL 생성
+        get_url = S3.generate_presigned_url(
+            ClientMethod="get_object",
+            Params={"Bucket": bucket, "Key": key},
+            ExpiresIn=expires,
+        )
 
-            result = {
-                "key": obj["Key"],
-                "url": get_url,
-                "lastModified": obj["LastModified"].isoformat(),
-                "size": obj["Size"],
-            }
-        else:
-            # 객체가 없는 경우
-            result = None
+        result = {
+            "key": key,
+            "url": get_url,
+        }
 
         return result, None
 
+    except ClientError as s3_error:
+        error_code = s3_error.response.get("Error", {}).get("Code", "")
+
+        # 파일이 없는 경우
+        if error_code == "404" or error_code == "NoSuchKey":
+            return None, "Not found"
+
+        # S3 스로틀링 에러 감지
+        if error_code in ["SlowDown", "ServiceUnavailable", "503"]:
+            raise Exception("S3 service temporarily unavailable. Please retry.")
+
+        raise Exception(f"S3 error: {error_code}")
+
     except Exception as e:
-        return None, str(e)
+        raise Exception(f"Failed to get bill image: {e}")
 
 
 def get_paid_bill_image(
@@ -177,6 +181,20 @@ def get_paid_bill_image(
     access_token: str,
     student_no: str = "",
 ) -> Tuple[Dict[str, Any] | None, str | None]:
+    """
+    관리비 납부 완료 이미지를 조회합니다.
+
+    Args:
+        room_id: 방 번호
+        bill_type: 관리비 유형
+        year: 연도
+        month: 월
+        access_token: 액세스 토큰
+        student_no: 학생 번호 (관리자용, 선택사항)
+
+    Returns:
+        Tuple[Dict, str | None]: (이미지 데이터, 에러 메시지)
+    """
     try:
         bucket, allowed, expires, allow_origin = _load_env()
 
@@ -187,25 +205,38 @@ def get_paid_bill_image(
         elif is_common_user_group_from_access_token(access_token):
             prefix = _get_paid_key_prefix(access_token, year, month, room_id, bill_type)
 
-        response = S3.list_objects_v2(Bucket=bucket, Prefix=prefix)
-        if "Contents" in response and len(response["Contents"]) > 0:
-            obj = response["Contents"][0]
-            get_url = S3.generate_presigned_url(
-                ClientMethod="get_object",
-                Params={"Bucket": bucket, "Key": obj["Key"]},
-                ExpiresIn=expires,
-            )
-            result = {
-                "key": obj["Key"],
-                "url": get_url,
-                "lastModified": obj["LastModified"].isoformat(),
-                "size": obj["Size"],
-            }
-        else:
-            result = None
+        # head_object로 파일 존재 확인 (list_objects_v2보다 빠름, 메타데이터만 가져옴)
+        response = S3.head_object(Bucket=bucket, Key=prefix)
+
+        # 파일이 존재하면 presigned URL 생성
+        get_url = S3.generate_presigned_url(
+            ClientMethod="get_object",
+            Params={"Bucket": bucket, "Key": prefix},
+            ExpiresIn=expires,
+        )
+
+        result = {
+            "key": prefix,
+            "url": get_url,
+        }
+
         return result, None
+
+    except ClientError as s3_error:
+        error_code = s3_error.response.get("Error", {}).get("Code", "")
+
+        # 파일이 없는 경우
+        if error_code == "404" or error_code == "NoSuchKey":
+            return None, "Not found"
+
+        # S3 스로틀링 에러 감지
+        if error_code in ["SlowDown", "ServiceUnavailable", "503"]:
+            raise Exception("S3 service temporarily unavailable. Please retry.")
+
+        raise Exception(f"S3 error: {error_code}")
+
     except Exception as e:
-        return None, str(e)
+        raise Exception(f"Failed to get paid bill image: {e}")
 
 
 def get_bill(
