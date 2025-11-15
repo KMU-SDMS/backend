@@ -89,10 +89,10 @@ def get_image(event, context):
     - year: 연도 (필수)
     - month: 월 (필수)
     """
-    if not is_common_user_group(event.get("user_info")):
+    if not is_common_user_group(event.get("user_info")) and not is_admin_group(
+        event.get("user_info")
+    ):
         return responses.create_error_response("Unauthorized.", 401)
-
-    logger.info("✅ Processing get bill image request")
 
     try:
         # 쿼리 파라미터 추출
@@ -116,14 +116,8 @@ def get_image(event, context):
 
         # 서비스 호출
         data, err = bill_service.get_bill_image(room_id, bill_type, year, month)
-        if err:
-            return responses.create_error_response(err, 400)
-
-        # 이미지가 없는 경우 404 반환
-        if data is None:
-            return responses.create_error_response(
-                "No image found for the specified criteria.", 404
-            )
+        if err == "Not found" or data is None:
+            return responses.create_error_response("Not found.", 404)
 
         return responses.create_success_response(data)
 
@@ -178,15 +172,13 @@ def get_paid_bill_image(event, context):
 
         # 서비스 호출
         data, error = bill_service.get_paid_bill_image(
-            room_id, bill_type, year, month, event.get("access_token")
+            room_id, bill_type, year, month, event.get("access_token"), student_no
         )
-        if error:
-            return responses.create_error_response(error, 400)
-        if data is None:
-            return responses.create_error_response(
-                "No paid bill image found for the specified criteria.", 404
-            )
+        if error == "Not found" or data is None:
+            logger.info(f"❌ get paid bill image not found: {error}")
+            return responses.create_error_response("Not found.", 404)
 
+        logger.info(f"✅ get paid bill image success: {data}")
         return responses.create_success_response(data)
     except Exception as e:
         logger.error(f"❌ get paid bill image failed: {e}")
@@ -216,10 +208,10 @@ def get_bill(event, context):
             data, error = bill_service.get_bill(student_no, event.get("access_token"))
         elif is_common_user_group(event.get("user_info")):
             data, error = bill_service.get_bill(None, event.get("access_token"))
+        if error == "Not found" or data is None:
+            return responses.create_error_response("Not found.", 404)
         if error:
             return responses.create_error_response(error, 400)
-        if data is None:
-            return responses.create_error_response("Not found.", 404)
 
         return responses.create_success_response(data)
     except Exception as e:

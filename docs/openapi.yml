@@ -2301,15 +2301,6 @@ components:
           type: string
           description: 이미지 다운로드용 presigned GET URL (유효기간 5분)
           example: "https://bucket-name.s3.ap-northeast-2.amazonaws.com/bills/2025/9/101/water?X-Amz-Algorithm=..."
-        lastModified:
-          type: string
-          format: date-time
-          description: 파일 최종 수정 일시 (ISO 8601 형식)
-          example: "2025-09-21T09:39:05.000Z"
-        size:
-          type: integer
-          description: 파일 크기 (bytes)
-          example: 2132
 
     PersonalNotificationRequest:
       type: object
