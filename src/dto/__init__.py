@@ -38,6 +38,18 @@ from .overnight_stay_dto import (
     OvernightStayAdminListDTO,
     OvernightStayPageInfoDTO,
 )
+from .rollcall_dto import (
+    RollcallDTO,
+    RollcallListDTO,
+    RollcallCreateRequestDTO,
+    RollcallUpdateRequestDTO,
+)
+from .point_dto import (
+    PointDTO,
+    PointListDTO,
+    PointCreateRequestDTO,
+    PointBulkCreateRequestDTO,
+)
 
 __all__ = [
     "BaseDTO",
@@ -72,4 +84,12 @@ __all__ = [
     "OvernightStaySummaryDTO",
     "OvernightStayAdminListDTO",
     "OvernightStayPageInfoDTO",
+    "RollcallDTO",
+    "RollcallListDTO",
+    "RollcallCreateRequestDTO",
+    "RollcallUpdateRequestDTO",
+    "PointDTO",
+    "PointListDTO",
+    "PointCreateRequestDTO",
+    "PointBulkCreateRequestDTO",
 ]
