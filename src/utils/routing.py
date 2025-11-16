@@ -15,6 +15,10 @@ MODULE_MAP: Dict[str, str] = {
     "notifications": "notifications_handler",
     "overnight-stay": "overnight_stays_handler",
     "overnight-stays": "overnight_stays_handler",
+    "rollcalls": "rollcall_handler",
+    "rollcall": "rollcall_handler",
+    "points": "point_handler",
+    "point": "point_handler",
 }
 
 # 2) 예외 라우팅: (METHOD, path_after_api)
@@ -43,6 +47,10 @@ ROUTE_OVERRIDES: Dict[Tuple[str, str], Tuple[str, str]] = {
         "send_individual_notification_handler",
     ),
     ("GET", "notices/filter"): ("notices_handler", "filter"),
+    ("GET", "rollcalls"): ("rollcall_handler", "get_rollcalls"),
+    ("GET", "points"): ("point_handler", "get_points"),
+    ("POST", "points"): ("point_handler", "create_point"),
+    ("POST", "points/bulk"): ("point_handler", "bulk_create_points"),
 }
 
 # 3) 기본 함수 규칙: (METHOD, resource) → function name
@@ -67,6 +75,9 @@ DEFAULT_FUNC_RULES: Dict[Tuple[str, str], str] = {
     ("GET", "overnight-stay"): "get_student_requests",
     ("GET", "overnight-stays"): "get_admin_requests",
     ("PATCH", "overnight-stays"): "update_status",
+    ("POST", "rollcall"): "create_or_update_rollcall",
+    ("PATCH", "rollcall"): "update_rollcall",
+    ("DELETE", "rollcall"): "delete_rollcall",
 }
 
 
