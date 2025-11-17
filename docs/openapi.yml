@@ -1143,7 +1143,7 @@ paths:
   /api/bill/presign:
     post:
       summary: 관리비 고지서 업로드 URL 발급
-      description: S3에 관리비 고지서 이미지를 업로드하기 위한 임시 presigned URL을 발급합니다. 발급된 URL은 5분간 유효합니다. 관리자가 요청할시 관리비 고지서 업로드 URL이 발급됩니다. 학생이 요청할시 관리비 납부 완료 업로드 URL이 발급됩니다.  
+      description: S3에 관리비 고지서 이미지를 업로드하기 위한 임시 presigned URL을 발급합니다. 발급된 URL은 5분간 유효합니다. 관리자가 요청할시 관리비 고지서 업로드 URL이 발급됩니다. 학생이 요청할시 관리비 납부 완료 업로드 URL이 발급됩니다.
       tags:
         - Bills
       requestBody:
@@ -1357,7 +1357,7 @@ paths:
                 $ref: "#/components/schemas/Error"
   /api/bill/image:
     get:
-      summary:  관리비 고지서 이미지 조회, 관리자, 학생 조회 가능
+      summary: 관리비 고지서 이미지 조회, 관리자, 학생 조회 가능
       description: 저장된 관리비 고지서 이미지를 조회하기 위한 임시 다운로드 URL을 발급합니다. 발급된 URL은 5분간 유효합니다.
       tags:
         - Bills
@@ -1503,7 +1503,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
- 
 
   /auth/login:
     get:
@@ -1544,6 +1543,324 @@ paths:
           description: 로그인 완료 후 최종 리다이렉트
         "400":
           description: state/code 오류
+
+  /api/rollcalls:
+    get:
+      summary: 점호 기록 조회
+      description: 필터링된 점호 기록을 조회합니다. 날짜, 호실, 학생 이름, 출석 여부로 필터링할 수 있습니다.
+      tags:
+        - Rollcalls
+      parameters:
+        - name: date
+          in: query
+          description: 점호 날짜 (YYYY-MM-DD 형식)
+          required: false
+          schema:
+            type: string
+            format: date
+          example: "2025-11-16"
+        - name: roomId
+          in: query
+          description: 호실 번호
+          required: false
+          schema:
+            type: integer
+          example: 101
+        - name: name
+          in: query
+          description: 학생 이름 (부분 일치)
+          required: false
+          schema:
+            type: string
+          example: "홍길동"
+        - name: present
+          in: query
+          description: 출석 여부 (true=출석만, false=결석만)
+          required: false
+          schema:
+            type: boolean
+          example: true
+      responses:
+        "200":
+          description: 성공적으로 점호 기록을 반환했습니다.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Rollcall"
+        "400":
+          description: 잘못된 요청 (파라미터 형식 오류)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: 서버 내부 오류
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/rollcall:
+    post:
+      summary: 점호 기록 생성/수정 (Upsert)
+      description: 점호 기록을 생성하거나 수정합니다. 같은 학생의 같은 날짜에 이미 기록이 있으면 수정하고, 없으면 생성합니다.
+      tags:
+        - Rollcalls
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RollcallCreateRequest"
+            example:
+              studentId: "20240001"
+              date: "2025-11-16"
+              present: true
+              note: "사감실 확인"
+      responses:
+        "200":
+          description: 점호 기록이 성공적으로 생성/수정되었습니다.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Rollcall"
+        "400":
+          description: 잘못된 요청 (필수 필드 누락 또는 형식 오류)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: 학생을 찾을 수 없음
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: 서버 내부 오류
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+    patch:
+      summary: 점호 기록 부분 수정
+      description: 점호 기록의 출석 여부나 비고를 부분 수정합니다.
+      tags:
+        - Rollcalls
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RollcallUpdateRequest"
+            example:
+              id: 1
+              present: false
+              note: "병가로 변경"
+      responses:
+        "200":
+          description: 점호 기록이 성공적으로 수정되었습니다.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Rollcall"
+        "400":
+          description: 잘못된 요청 (ID 형식 오류 또는 필수 필드 누락)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: 점호 기록을 찾을 수 없음
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: 서버 내부 오류
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+    delete:
+      summary: 점호 기록 삭제
+      description: 특정 점호 기록을 삭제합니다.
+      tags:
+        - Rollcalls
+      parameters:
+        - name: id
+          in: query
+          description: 삭제할 점호 기록 ID
+          required: true
+          schema:
+            type: integer
+          example: 1
+      responses:
+        "200":
+          description: 점호 기록이 성공적으로 삭제되었습니다.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Rollcall deleted successfully"
+        "400":
+          description: 잘못된 요청 (ID 형식 오류)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: 삭제할 점호 기록을 찾을 수 없음
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: 서버 내부 오류
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/points:
+    get:
+      summary: 상벌점 이력 조회
+      description: 상벌점 이력을 조회합니다. 학생 번호와 날짜 범위로 필터링할 수 있습니다.
+      tags:
+        - Points
+      parameters:
+        - name: studentId
+          in: query
+          description: 학생 학번
+          required: false
+          schema:
+            type: string
+          example: "20240001"
+        - name: dateFrom
+          in: query
+          description: 시작 날짜 (YYYY-MM-DD 형식)
+          required: false
+          schema:
+            type: string
+            format: date
+          example: "2025-11-01"
+        - name: dateTo
+          in: query
+          description: 종료 날짜 (YYYY-MM-DD 형식)
+          required: false
+          schema:
+            type: string
+            format: date
+          example: "2025-11-16"
+      responses:
+        "200":
+          description: 성공적으로 상벌점 이력을 반환했습니다.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Point"
+        "500":
+          description: 서버 내부 오류
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+    post:
+      summary: 상벌점 단건 부여
+      description: 특정 학생에게 상벌점을 부여합니다.
+      tags:
+        - Points
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PointCreateRequest"
+            example:
+              studentId: "20240001"
+              type: "MERIT"
+              score: 3
+              reason: "청소 우수"
+              date: "2025-11-16"
+      responses:
+        "201":
+          description: 상벌점이 성공적으로 부여되었습니다.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Point"
+        "400":
+          description: 잘못된 요청 (필수 필드 누락, type/score 유효성 오류)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: 학생을 찾을 수 없음
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: 서버 내부 오류
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/points/bulk:
+    post:
+      summary: 상벌점 대량 부여
+      description: 여러 학생에게 동일한 상벌점을 대량으로 부여합니다. 트랜잭션 처리로 전체 성공 또는 전체 실패를 보장합니다.
+      tags:
+        - Points
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PointBulkCreateRequest"
+            example:
+              studentIds: ["20240001", "20240002", "20240003"]
+              type: "DEMERIT"
+              score: 1
+              reason: "소음"
+              date: "2025-11-16"
+      responses:
+        "201":
+          description: 상벌점이 성공적으로 대량 부여되었습니다.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PointBulkCreateResponse"
+        "400":
+          description: 잘못된 요청 (studentIds 빈 배열, type/score 유효성 오류)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: 존재하지 않는 학생 학번 포함 (일부라도)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: 서버 내부 오류
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 
   /auth/logout:
     get:
@@ -2368,6 +2685,193 @@ components:
           description: 추가 메시지 (구독 없는 경우)
           example: "No active subscriptions found for this student"
 
+    Rollcall:
+      type: object
+      description: 점호 기록 정보
+      properties:
+        id:
+          type: integer
+          description: 점호 기록 ID
+          example: 1
+        studentId:
+          type: string
+          description: 학생 학번
+          example: "20240001"
+        date:
+          type: string
+          format: date
+          description: 점호 날짜 (YYYY-MM-DD 형식)
+          example: "2025-11-16"
+        present:
+          type: boolean
+          description: 출석 여부 (true=출석, false=결석)
+          example: true
+        note:
+          type: string
+          nullable: true
+          description: 비고
+          example: "사감실 확인"
+
+    RollcallCreateRequest:
+      type: object
+      description: 점호 기록 생성/수정 요청
+      required:
+        - studentId
+        - date
+        - present
+      properties:
+        studentId:
+          type: string
+          description: 학생 학번
+          example: "20240001"
+        date:
+          type: string
+          format: date
+          description: 점호 날짜 (YYYY-MM-DD 형식)
+          example: "2025-11-16"
+        present:
+          type: boolean
+          description: 출석 여부 (true=출석, false=결석)
+          example: true
+        note:
+          type: string
+          description: 비고 (선택사항)
+          example: "사감실 확인"
+
+    RollcallUpdateRequest:
+      type: object
+      description: 점호 기록 부분 수정 요청
+      required:
+        - id
+      properties:
+        id:
+          type: integer
+          description: 점호 기록 ID
+          example: 1
+        present:
+          type: boolean
+          description: 출석 여부 (선택사항)
+          example: false
+        note:
+          type: string
+          description: 비고 (선택사항)
+          example: "병가로 변경"
+
+    Point:
+      type: object
+      description: 상벌점 정보
+      properties:
+        id:
+          type: integer
+          description: 상벌점 ID
+          example: 1
+        studentId:
+          type: string
+          description: 학생 학번
+          example: "20240001"
+        type:
+          type: string
+          description: 상벌점 유형
+          enum: [MERIT, DEMERIT]
+          example: "MERIT"
+        score:
+          type: integer
+          description: 점수 (양수)
+          example: 3
+        reason:
+          type: string
+          description: 사유
+          example: "청소 우수"
+        date:
+          type: string
+          format: date
+          description: 부여 날짜 (YYYY-MM-DD 형식)
+          example: "2025-11-16"
+
+    PointCreateRequest:
+      type: object
+      description: 상벌점 부여 요청
+      required:
+        - studentId
+        - type
+        - score
+        - reason
+        - date
+      properties:
+        studentId:
+          type: string
+          description: 학생 학번
+          example: "20240001"
+        type:
+          type: string
+          description: 상벌점 유형
+          enum: [MERIT, DEMERIT]
+          example: "MERIT"
+        score:
+          type: integer
+          description: 점수 (양수만 가능)
+          minimum: 1
+          example: 3
+        reason:
+          type: string
+          description: 사유
+          example: "청소 우수"
+        date:
+          type: string
+          format: date
+          description: 부여 날짜 (YYYY-MM-DD 형식)
+          example: "2025-11-16"
+
+    PointBulkCreateRequest:
+      type: object
+      description: 상벌점 대량 부여 요청
+      required:
+        - studentIds
+        - type
+        - score
+        - reason
+        - date
+      properties:
+        studentIds:
+          type: array
+          description: 학생 학번 배열
+          items:
+            type: string
+          example: ["20240001", "20240002", "20240003"]
+        type:
+          type: string
+          description: 상벌점 유형
+          enum: [MERIT, DEMERIT]
+          example: "DEMERIT"
+        score:
+          type: integer
+          description: 점수 (양수만 가능)
+          minimum: 1
+          example: 1
+        reason:
+          type: string
+          description: 사유
+          example: "소음"
+        date:
+          type: string
+          format: date
+          description: 부여 날짜 (YYYY-MM-DD 형식)
+          example: "2025-11-16"
+
+    PointBulkCreateResponse:
+      type: object
+      description: 상벌점 대량 부여 응답
+      properties:
+        created:
+          type: integer
+          description: 생성된 레코드 수
+          example: 3
+        items:
+          type: array
+          description: 생성된 상벌점 레코드 목록
+          items:
+            $ref: "#/components/schemas/Point"
+
 tags:
   - name: Rooms
     description: 호실 관련 API
@@ -2385,3 +2889,7 @@ tags:
     description: 인증 관련 API (스웨거에서는 동작하지 않음)
   - name: OvernightStays
     description: 외박 신청 관련 API
+  - name: Rollcalls
+    description: 점호 기록 관련 API
+  - name: Points
+    description: 상벌점 관리 관련 API
