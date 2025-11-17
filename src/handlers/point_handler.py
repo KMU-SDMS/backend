@@ -25,22 +25,27 @@ def get_points(event, context):
     """
     logger.info("✅ Processing get points request")
 
-    query_params = event.get("queryStringParameters") or {}
-    student_id = query_params.get("studentId")
-    date_from = query_params.get("dateFrom")
-    date_to = query_params.get("dateTo")
+    try:
+        query_params = event.get("queryStringParameters") or {}
+        student_id = query_params.get("studentId")
+        date_from = query_params.get("dateFrom")
+        date_to = query_params.get("dateTo")
 
-    # 서비스 호출
-    result, error = point_service.get_points(
-        student_id=student_id, date_from=date_from, date_to=date_to
-    )
+        # 서비스 호출
+        result = point_service.get_points(
+            student_id=student_id, date_from=date_from, date_to=date_to
+        )
 
-    if error:
-        return responses.create_error_response(error, 500)
+        # DTO를 사용하여 응답 데이터 변환
+        point_list_dto = PointListDTO.from_supabase_data(result)
+        return responses.create_success_response(point_list_dto.to_dict())
 
-    # DTO를 사용하여 응답 데이터 변환
-    point_list_dto = PointListDTO.from_supabase_data(result)
-    return responses.create_success_response(point_list_dto.to_dict())
+    except RuntimeError as e:
+        logger.error(f"❌ 상벌점 조회 실패: {e}")
+        return responses.create_error_response(str(e), 500)
+    except Exception as e:
+        logger.error(f"❌ 상벌점 조회 실패: {e}")
+        return responses.create_error_response("Internal server error.", 500)
 
 
 def create_point(event, context):
@@ -78,29 +83,34 @@ def create_point(event, context):
                 "Score must be a positive integer.", 400
             )
 
-        # 학생 존재 여부 확인
+        # 학생 존재 여부 확인 (students_service는 아직 tuple 반환 패턴)
         student, error = students_service.get_student_by_student_no(
             create_request.studentId
         )
         if error:
             if error == "Not found":
                 return responses.create_error_response("Student not found.", 404)
-            return responses.create_error_response(error, 500)
+            logger.error(f"❌ 학생 조회 실패: {error}")
+            return responses.create_error_response("Internal server error.", 500)
 
         # 서비스 호출
-        result, error = point_service.create_point(
-            student_no=create_request.studentId,
-            type=create_request.type,
-            score=create_request.score,
-            reason=create_request.reason,
-            date=create_request.date,
-        )
-
-        if error:
-            # 서비스에서 이미 유효성 검사를 했지만, 에러 메시지 전달
-            if "Invalid type" in error or "Score must be" in error:
-                return responses.create_error_response(error, 400)
-            return responses.create_error_response(error, 500)
+        try:
+            result = point_service.create_point(
+                student_no=create_request.studentId,
+                type=create_request.type,
+                score=create_request.score,
+                reason=create_request.reason,
+                date=create_request.date,
+            )
+        except ValueError as e:
+            logger.error(f"❌ 상벌점 생성 실패 (유효성 검사): {e}")
+            return responses.create_error_response(str(e), 400)
+        except RuntimeError as e:
+            logger.error(f"❌ 상벌점 생성 실패: {e}")
+            return responses.create_error_response(str(e), 500)
+        except Exception as e:
+            logger.error(f"❌ 상벌점 생성 실패: {e}")
+            return responses.create_error_response("Internal server error.", 500)
 
         # DTO를 사용하여 응답 데이터 변환
         point_dto = PointDTO.from_supabase_data(result)
@@ -153,7 +163,7 @@ def bulk_create_points(event, context):
                 "Score must be a positive integer.", 400
             )
 
-        # 모든 학생 존재 여부 확인
+        # 모든 학생 존재 여부 확인 (students_service는 아직 tuple 반환 패턴)
         for student_id in bulk_request.studentIds:
             student, error = students_service.get_student_by_student_no(student_id)
             if error:
@@ -161,26 +171,27 @@ def bulk_create_points(event, context):
                     return responses.create_error_response(
                         f"Student not found: {student_id}", 404
                     )
-                return responses.create_error_response(error, 500)
+                logger.error(f"❌ 학생 조회 실패: {error}")
+                return responses.create_error_response("Internal server error.", 500)
 
         # 서비스 호출
-        result, error = point_service.bulk_create_points(
-            student_ids=bulk_request.studentIds,
-            type=bulk_request.type,
-            score=bulk_request.score,
-            reason=bulk_request.reason,
-            date=bulk_request.date,
-        )
-
-        if error:
-            # 서비스에서 이미 유효성 검사를 했지만, 에러 메시지 전달
-            if (
-                "Invalid type" in error
-                or "Score must be" in error
-                or "cannot be empty" in error
-            ):
-                return responses.create_error_response(error, 400)
-            return responses.create_error_response(error, 500)
+        try:
+            result = point_service.bulk_create_points(
+                student_ids=bulk_request.studentIds,
+                type=bulk_request.type,
+                score=bulk_request.score,
+                reason=bulk_request.reason,
+                date=bulk_request.date,
+            )
+        except ValueError as e:
+            logger.error(f"❌ 상벌점 일괄 생성 실패 (유효성 검사): {e}")
+            return responses.create_error_response(str(e), 400)
+        except RuntimeError as e:
+            logger.error(f"❌ 상벌점 일괄 생성 실패: {e}")
+            return responses.create_error_response(str(e), 500)
+        except Exception as e:
+            logger.error(f"❌ 상벌점 일괄 생성 실패: {e}")
+            return responses.create_error_response("Internal server error.", 500)
 
         # 응답 형식: {created: count, items: [...]}
         point_list = [PointDTO.from_supabase_data(item).to_dict() for item in result]
