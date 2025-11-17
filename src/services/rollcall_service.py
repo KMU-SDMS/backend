@@ -26,7 +26,7 @@ def get_rollcalls(
         supabase_rollcall = get_supabase_client("rollcall")
         supabase_core = get_supabase_client("core")
         if not supabase_rollcall or not supabase_core:
-            return None, "Supabase client could not be initialized."
+            raise RuntimeError("Supabase client could not be initialized.")
 
         logger.info("점호 기록 조회 시작")
 
@@ -49,7 +49,7 @@ def get_rollcalls(
             if not student_nos:
                 # 조건에 맞는 학생이 없으면 빈 결과 반환
                 logger.info("조건에 맞는 학생이 없어 빈 결과를 반환합니다.")
-                return [], None
+                return []
 
         # rollcall.records 조회 (JOIN 제거)
         query = (
@@ -71,12 +71,14 @@ def get_rollcalls(
         data = response.data
         logger.info(f"✅ {len(data)}개의 점호 기록을 조회했습니다.")
 
-        return data, None
+        return data
 
+    except RuntimeError:
+        # RuntimeError는 그대로 전파
+        raise
     except Exception as e:
-        logger.error(f"❌ 점호 기록 조회 실패: {e}")
-        error_message = getattr(e, "message", str(e))
-        return None, error_message
+        # 기타 예외는 RuntimeError로 변환하여 전파
+        raise RuntimeError(f"Failed to get rollcalls: {str(e)}")
 
 
 def create_or_update_rollcall(
@@ -86,45 +88,38 @@ def create_or_update_rollcall(
     점호 기록을 생성하거나 수정합니다 (Upsert).
     (student_no, date) 조합이 이미 존재하면 UPDATE, 없으면 INSERT합니다.
     """
-    try:
-        supabase = get_supabase_client("rollcall")
-        if not supabase:
-            return None, "Supabase client could not be initialized."
+    supabase = get_supabase_client("rollcall")
+    if not supabase:
+        raise RuntimeError("Supabase client could not be initialized.")
 
-        logger.info(
-            f"점호 기록 Upsert 시작: student_no={student_no}, date={date}, present={present}"
+    logger.info(
+        f"점호 기록 Upsert 시작: student_no={student_no}, date={date}, present={present}"
+    )
+
+    # Upsert 데이터 준비
+    upsert_data = {
+        "student_no": student_no,
+        "date": date,
+        "present": present,
+        "note": note or "",
+    }
+
+    # Supabase의 upsert 메서드 사용 (ON CONFLICT 처리)
+    response = (
+        supabase.postgrest.schema("rollcall")
+        .from_("records")
+        .upsert(upsert_data, on_conflict="student_no,date")
+        .execute()
+    )
+
+    data = response.data
+    if not data:
+        raise RuntimeError(
+            "Failed to upsert rollcall record: No data returned from database"
         )
 
-        # Upsert 데이터 준비
-        upsert_data = {
-            "student_no": student_no,
-            "date": date,
-            "present": present,
-            "note": note or "",
-        }
-
-        # Supabase의 upsert 메서드 사용 (ON CONFLICT 처리)
-        response = (
-            supabase.postgrest.schema("rollcall")
-            .from_("records")
-            .upsert(upsert_data, on_conflict="student_no,date")
-            .execute()
-        )
-
-        data = response.data
-        if data:
-            logger.info(
-                f"✅ 점호 기록 Upsert 성공: student_no={student_no}, date={date}"
-            )
-            return data[0], None
-        else:
-            logger.error("❌ 점호 기록 Upsert 실패: 응답 데이터가 없습니다.")
-            return None, "Failed to upsert rollcall record"
-
-    except Exception as e:
-        logger.error(f"❌ 점호 기록 Upsert 실패: {e}")
-        error_message = getattr(e, "message", str(e))
-        return None, error_message
+    logger.info(f"✅ 점호 기록 Upsert 성공: student_no={student_no}, date={date}")
+    return data[0]
 
 
 def update_rollcall(
@@ -133,74 +128,59 @@ def update_rollcall(
     """
     점호 기록을 부분 수정합니다.
     """
-    try:
-        supabase = get_supabase_client("rollcall")
-        if not supabase:
-            return None, "Supabase client could not be initialized."
+    supabase = get_supabase_client("rollcall")
+    if not supabase:
+        raise RuntimeError("Supabase client could not be initialized.")
 
-        logger.info(f"점호 기록 수정 시작: id={id}")
+    logger.info(f"점호 기록 수정 시작: id={id}")
 
-        # 업데이트할 필드만 구성
-        update_data = {}
-        if present is not None:
-            update_data["present"] = present
-        if note is not None:
-            update_data["note"] = note
+    # 업데이트할 필드만 구성
+    update_data = {}
+    if present is not None:
+        update_data["present"] = present
+    if note is not None:
+        update_data["note"] = note
 
-        if not update_data:
-            logger.warning("업데이트할 유효한 필드가 없습니다.")
-            return None, "No valid fields to update"
+    if not update_data:
+        raise ValueError("No valid fields to update")
 
-        response = (
-            supabase.postgrest.schema("rollcall")
-            .from_("records")
-            .update(update_data)
-            .eq("id", id)
-            .execute()
-        )
+    response = (
+        supabase.postgrest.schema("rollcall")
+        .from_("records")
+        .update(update_data)
+        .eq("id", id)
+        .execute()
+    )
 
-        data = response.data
-        if data:
-            logger.info(f"✅ 점호 기록 수정 성공: id={id}")
-            return data[0], None
-        else:
-            logger.info(f"❌ 점호 기록을 찾을 수 없습니다: id={id}")
-            return None, "Not found"
+    data = response.data
+    if not data:
+        raise RuntimeError(f"Rollcall not found: id={id}")
 
-    except Exception as e:
-        logger.error(f"❌ 점호 기록 수정 실패: {e}")
-        error_message = getattr(e, "message", str(e))
-        return None, error_message
+    logger.info(f"✅ 점호 기록 수정 성공: id={id}")
+    return data[0]
 
 
 def delete_rollcall(id: int):
     """
     점호 기록을 삭제합니다.
     """
-    try:
-        supabase = get_supabase_client("rollcall")
-        if not supabase:
-            return None, "Supabase client could not be initialized."
+    supabase = get_supabase_client("rollcall")
+    if not supabase:
+        raise RuntimeError("Supabase client could not be initialized.")
 
-        logger.info(f"점호 기록 삭제 시작: id={id}")
+    logger.info(f"점호 기록 삭제 시작: id={id}")
 
-        response = (
-            supabase.postgrest.schema("rollcall")
-            .from_("records")
-            .delete()
-            .eq("id", id)
-            .execute()
-        )
+    response = (
+        supabase.postgrest.schema("rollcall")
+        .from_("records")
+        .delete()
+        .eq("id", id)
+        .execute()
+    )
 
-        data = response.data
-        if data:
-            logger.info(f"✅ 점호 기록 삭제 성공: id={id}")
-            return data[0], None
-        else:
-            logger.info(f"❌ 점호 기록을 찾을 수 없습니다: id={id}")
-            return None, "Not found"
+    data = response.data
+    if not data:
+        raise RuntimeError(f"Rollcall not found: id={id}")
 
-    except Exception as e:
-        logger.error(f"❌ 점호 기록 삭제 실패: {e}")
-        error_message = getattr(e, "message", str(e))
-        return None, error_message
+    logger.info(f"✅ 점호 기록 삭제 성공: id={id}")
+    return data[0]

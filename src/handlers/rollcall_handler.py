@@ -51,13 +51,24 @@ def get_rollcalls(event, context):
                 "Invalid present format. Must be 'true' or 'false'.", 400
             )
 
-    # 서비스 호출
-    result, error = rollcall_service.get_rollcalls(
-        date=date, room_id=room_id_int, name=name, present=present_bool
-    )
+    # 필터가 하나라도 있는지 확인
+    has_filters = any([date, room_id_int, name, present is not None])
 
-    if error:
-        return responses.create_error_response(error, 500)
+    # 서비스 호출
+    try:
+        result = rollcall_service.get_rollcalls(
+            date=date, room_id=room_id_int, name=name, present=present_bool
+        )
+    except RuntimeError as e:
+        logger.error(f"❌ 점호 기록 조회 실패: {e}")
+        return responses.create_error_response(str(e), 500)
+    except Exception as e:
+        logger.error(f"❌ 점호 기록 조회 실패: {e}")
+        return responses.create_error_response("Internal server error.", 500)
+
+    # 필터가 있고 결과가 비어있으면 404 반환
+    if has_filters and not result:
+        return responses.create_error_response("No rollcall records found.", 404)
 
     # DTO를 사용하여 응답 데이터 변환
     rollcall_list_dto = RollcallListDTO.from_supabase_data(result)
@@ -94,15 +105,19 @@ def create_or_update_rollcall(event, context):
             return responses.create_error_response(error, 500)
 
         # 서비스 호출 (Upsert)
-        result, error = rollcall_service.create_or_update_rollcall(
-            student_no=create_request.studentId,
-            date=create_request.date,
-            present=create_request.present,
-            note=create_request.note,
-        )
-
-        if error:
-            return responses.create_error_response(error, 500)
+        try:
+            result = rollcall_service.create_or_update_rollcall(
+                student_no=create_request.studentId,
+                date=create_request.date,
+                present=create_request.present,
+                note=create_request.note,
+            )
+        except RuntimeError as e:
+            logger.error(f"❌ 점호 기록 Upsert 실패: {e}")
+            return responses.create_error_response(str(e), 500)
+        except Exception as e:
+            logger.error(f"❌ 점호 기록 Upsert 실패: {e}")
+            return responses.create_error_response("Internal server error.", 500)
 
         # 기존 레코드인지 확인하여 상태 코드 결정
         # Supabase upsert는 항상 업데이트된 레코드를 반환하므로,
@@ -135,16 +150,24 @@ def update_rollcall(event, context):
             return responses.create_error_response("id is required.", 400)
 
         # 서비스 호출
-        result, error = rollcall_service.update_rollcall(
-            id=update_request.id,
-            present=update_request.present,
-            note=update_request.note,
-        )
-
-        if error:
-            if error == "Not found":
+        try:
+            result = rollcall_service.update_rollcall(
+                id=update_request.id,
+                present=update_request.present,
+                note=update_request.note,
+            )
+        except ValueError as e:
+            logger.error(f"❌ 점호 기록 수정 실패 (유효성 검사): {e}")
+            return responses.create_error_response(str(e), 400)
+        except RuntimeError as e:
+            logger.error(f"❌ 점호 기록 수정 실패: {e}")
+            error_str = str(e)
+            if "not found" in error_str.lower():
                 return responses.create_error_response("Rollcall not found.", 404)
-            return responses.create_error_response(error, 500)
+            return responses.create_error_response(error_str, 500)
+        except Exception as e:
+            logger.error(f"❌ 점호 기록 수정 실패: {e}")
+            return responses.create_error_response("Internal server error.", 500)
 
         # DTO를 사용하여 응답 데이터 변환
         rollcall_dto = RollcallDTO.from_supabase_data(result)
@@ -163,37 +186,37 @@ def delete_rollcall(event, context):
     """
     logger.info("✅ Processing delete rollcall request")
 
+    # 쿼리 파라미터에서 id 추출
+    query_params = event.get("queryStringParameters") or {}
+    id_str = query_params.get("id")
+
+    if not id_str:
+        return responses.create_error_response("ID is required.", 400)
+
+    # ID를 정수로 변환
     try:
-        # 쿼리 파라미터에서 id 추출
-        query_params = event.get("queryStringParameters") or {}
-        id_str = query_params.get("id")
+        rollcall_id = int(id_str)
+        if rollcall_id <= 0:
+            return responses.create_error_response(
+                "ID must be a positive integer.", 400
+            )
+    except ValueError:
+        return responses.create_error_response("Invalid ID format.", 400)
 
-        if not id_str:
-            return responses.create_error_response("ID is required.", 400)
-
-        # ID를 정수로 변환
-        try:
-            rollcall_id = int(id_str)
-            if rollcall_id <= 0:
-                return responses.create_error_response(
-                    "ID must be a positive integer.", 400
-                )
-        except ValueError:
-            return responses.create_error_response("Invalid ID format.", 400)
-
-        # 서비스 호출
-        result, error = rollcall_service.delete_rollcall(id=rollcall_id)
-
-        if error:
-            if error == "Not found":
-                return responses.create_error_response("Rollcall not found.", 404)
-            return responses.create_error_response(error, 500)
-
-        # 성공 응답 반환
-        return responses.create_success_response(
-            {"message": "Rollcall deleted successfully"}
-        )
-
+    # 서비스 호출
+    try:
+        result = rollcall_service.delete_rollcall(id=rollcall_id)
+    except RuntimeError as e:
+        logger.error(f"❌ 점호 기록 삭제 실패: {e}")
+        error_str = str(e)
+        if "not found" in error_str.lower():
+            return responses.create_error_response("Rollcall not found.", 404)
+        return responses.create_error_response(error_str, 500)
     except Exception as e:
         logger.error(f"❌ 점호 기록 삭제 실패: {e}")
         return responses.create_error_response("Internal server error.", 500)
+
+    # 성공 응답 반환
+    return responses.create_success_response(
+        {"message": "Rollcall deleted successfully"}
+    )
