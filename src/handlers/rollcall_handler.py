@@ -86,14 +86,8 @@ def create_or_update_rollcall(event, context):
     try:
         body = json.loads(event.get("body", "{}"))
 
-        # DTO를 사용한 요청 데이터 검증
+        # DTO를 사용한 요청 데이터 검증 (from_dict에서 검증 수행)
         create_request = RollcallCreateRequestDTO.from_dict(body)
-
-        # 필수 필드 검증
-        if not create_request.studentId:
-            return responses.create_error_response("studentId is required.", 400)
-        if not create_request.date:
-            return responses.create_error_response("date is required.", 400)
 
         # 학생 존재 여부 확인
         student, error = students_service.get_student_by_student_no(
@@ -142,12 +136,8 @@ def update_rollcall(event, context):
     try:
         body = json.loads(event.get("body", "{}"))
 
-        # DTO를 사용한 요청 데이터 검증
+        # DTO를 사용한 요청 데이터 검증 (from_dict에서 검증 수행)
         update_request = RollcallUpdateRequestDTO.from_dict(body)
-
-        # 필수 필드 검증
-        if not update_request.id:
-            return responses.create_error_response("id is required.", 400)
 
         # 서비스 호출
         try:
