@@ -85,6 +85,36 @@ jobs:
           # 빌드 검증
           ls -la layer/python/ | head -5
 
+      # 7-1. AWS CLI 설치 (ECR 로그인용)
+      - name: Install AWS CLI
+        run: |
+          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+          unzip awscliv2.zip
+          sudo ./aws/install
+          aws --version
+
+      # 7-2. Docker 이미지 빌드 및 ECR 푸시
+      - name: Build and Push Docker Image to ECR
+        run: |
+          # config 파일에서 BILL_OCR_IMAGE_URI 추출
+          # BILL_OCR_IMAGE_URI 형식: 169615918165.dkr.ecr.ap-northeast-2.amazonaws.com/ocr-lambda-dev:latest
+          BILL_OCR_IMAGE_URI=$(cat envs/config.${{ env.STAGE }}.json | grep -o '"BILL_OCR_IMAGE_URI": "[^"]*"' | cut -d'"' -f4)
+          
+          # 이미지 URI에서 리포지토리 부분 추출 (예: 169615918165.dkr.ecr.ap-northeast-2.amazonaws.com)
+          ECR_REPO=$(echo $BILL_OCR_IMAGE_URI | sed 's|/.*||')
+          
+          # ECR 로그인
+          aws ecr get-login-password --region ap-northeast-2 | docker login --username AWS --password-stdin $ECR_REPO
+          
+          # Docker 이미지 빌드
+          DOCKER_BUILDKIT=0 docker build --platform linux/amd64 -t ocr-lambda-${{ env.STAGE }} .
+          
+          # Docker 이미지 태그 (BILL_OCR_IMAGE_URI를 그대로 사용)
+          docker tag ocr-lambda-${{ env.STAGE }}:latest $BILL_OCR_IMAGE_URI
+          
+          # ECR에 푸시
+          docker push $BILL_OCR_IMAGE_URI
+
       # 8. Firebase Service Account JSON 파일 생성 (base64 디코딩)
       - name: Create Firebase Service Account JSON
         if: env.STAGE == 'dev'
