@@ -64,6 +64,3 @@ encode.py
 
 output/
 .test.json
-
-setup-act-secrets.sh
-run-act.sh
