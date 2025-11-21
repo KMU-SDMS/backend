@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 
 from src.services import bill_service
 from src.utils import responses
@@ -288,3 +289,45 @@ def update_bill(event, context):
     except Exception as e:
         logger.error(f"❌ update bill failed: {e}")
         return responses.create_error_response("Internal server error.", 500)
+
+
+def get_bills_from_end_date(event, context):
+    """
+    GET /bills/endDate?endDate={endDate}
+
+    Query Parameters:
+    - endDate: 종료 일자 (YYYY-MM-DD)
+    """
+
+    try:
+        if not is_admin_group(event.get("user_info")) and not is_common_user_group(
+            event.get("user_info")
+        ):
+            return responses.create_warning_response("Unauthorized.", 401)
+
+        query_params = event.get("queryStringParameters") or {}
+        end_date = query_params.get("endDate")
+
+        if not end_date:
+            return responses.create_warning_response("endDate is required.", 400)
+
+        # 날짜 형식 검증 (YYYY-MM-DD)
+        date_pattern = r"^\d{4}-\d{2}-\d{2}$"
+        if not re.match(date_pattern, end_date):
+            return responses.create_warning_response(
+                "endDate must be in YYYY-MM-DD format.", 400
+            )
+
+        data, error = bill_service.get_bills_from_end_date(end_date)
+        if error == "Not found" or data is None:
+            return responses.create_warning_response(
+                "get bills from end date not found.", 404
+            )
+        elif data:
+            return responses.create_success_response(data)
+        else:
+            raise Exception(f"service error: Failed to get bills from end date: {data}")
+    except Exception as e:
+        return responses.create_error_response(
+            f"bill handler error: get bills from end date failed: {e}.", 500
+        )

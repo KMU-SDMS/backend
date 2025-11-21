@@ -306,3 +306,28 @@ def update_bill(
             return False, "Not found"
     except Exception as e:
         return False, str(e)
+
+
+def get_bills_from_end_date(end_date: str) -> Tuple[Dict[str, Any] | None, str | None]:
+    """
+    Supabase에서 end_date로 관리비를 조회합니다.
+    """
+    try:
+        supabase = get_supabase_client("core")
+        response = (
+            supabase.postgrest.schema("core")
+            .from_("bill")
+            .select("*")
+            .eq("end_date", end_date)
+            .execute()
+        )
+        data = response.data
+        if data:
+            dto_list = BillListDTO.from_supabase_data(data)
+            return dto_list.to_dict(), None
+        elif data is None or len(data) == 0:
+            return None, "Not found"
+        else:
+            raise Exception(f"service error: Failed to get bills from end date: {data}")
+    except Exception as e:
+        raise Exception(f"service error: Failed to get bills from end date: {e}")

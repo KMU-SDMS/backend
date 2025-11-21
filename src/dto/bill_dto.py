@@ -41,8 +41,15 @@ class BillListDTO(BaseDTO):
 
     items: list[BillDTO]
 
-    def to_dict(self) -> list[dict[str, Any]]:
-        return [item.to_dict() for item in self.items]
+    def to_dict(self) -> dict[str, list[dict[str, Any]]]:
+        """학번을 키로 하는 딕셔너리 형태로 변환"""
+        result: dict[str, list[dict[str, Any]]] = {}
+        for item in self.items:
+            student_no = item.studentNo
+            if student_no not in result:
+                result[student_no] = []
+            result[student_no].append(item.to_dict())
+        return result
 
     @classmethod
     def from_supabase_data(cls, rows: list[dict]) -> "BillListDTO":

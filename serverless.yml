@@ -32,6 +32,11 @@ provider:
   timeout: 25
   memorySize: 512
   stage: ${opt:stage, 'dev'}
+  ecr:
+    images:
+      ocr:
+        path: .
+        file: Dockerfile
   iam:
     role:
       statements:
@@ -82,6 +87,7 @@ provider:
     SUPABASE_API_KEY: ${file(envs/config.${self:provider.stage}.json):SUPABASE_API_KEY}
     API_GATEWAY_ID: ${file(envs/config.${self:provider.stage}.json):API_GATEWAY_ID}
     BILL_BUCKET_NAME: ${file(envs/config.${self:provider.stage}.json):BILL_BUCKET_NAME}
+    BILL_OCR_IMAGE_URI: ${file(envs/config.${self:provider.stage}.json):BILL_OCR_IMAGE_URI}
     FCM_SERVICE_ACCOUNT_PATH: ${file(envs/config.${self:provider.stage}.json):FCM_SERVICE_ACCOUNT_PATH}
     FCM_PROJECT_ID: ${file(envs/config.${self:provider.stage}.json):FCM_PROJECT_ID}
     WEBHOOK_SECRET: ${file(envs/config.${self:provider.stage}.json):WEBHOOK_SECRET}
@@ -175,3 +181,18 @@ functions:
       - httpApi:
           method: any
           path: /api/{proxy+}
+
+  calcBillFromOcr:
+    name: ${self:provider.stage}-calc-Bill-From-Ocr
+    image:
+      uri: ${file(envs/config.${self:provider.stage}.json):BILL_OCR_IMAGE_URI}
+    memorySize: 3008
+    timeout: 300
+    events:
+      - s3:
+          bucket: ${self:provider.environment.BILL_BUCKET_NAME}
+          event: s3:ObjectCreated:*
+          existing: true
+          rules:
+            - prefix: bills/
+      

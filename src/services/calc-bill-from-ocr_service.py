@@ -13,6 +13,9 @@ import json as _json
 from paddleocr import PaddleOCR
 from datetime import datetime, date
 import calendar
+import logging
+
+logger = logging.getLogger(__name__)
 
 # AWS 클라이언트 초기화
 s3_client = boto3.client("s3")
@@ -53,7 +56,7 @@ def lambda_handler(event, context):
         }
 
     except Exception as e:
-        print(f"❌ Lambda execution failed: {str(e)}")
+        logger.error(f"Lambda execution failed: {str(e)}")
         return {
             "statusCode": 500,
             "body": json.dumps({"message": "OCR processing failed", "error": str(e)}),
@@ -121,7 +124,9 @@ def process_bill_image(bucket_name: str, object_key: str) -> bool:
             bill_calculations=bill_calculations,
             bank_info=bank_info,
         )
-
+        logger.info(
+            f"OCR 결과 저장 완료 - {len(bill_calculations)}건의 관리비 레코드가 저장되었습니다."
+        )
         return True
 
     except Exception as e:
@@ -159,7 +164,7 @@ def parse_s3_path(object_key: str) -> Optional[Tuple[str, str, str, str]]:
         return None
 
     except Exception as e:
-        print(f"❌ Path parsing error: {str(e)}")
+        logger.error(f"Path parsing error: {str(e)}")
         return None
 
 
@@ -230,22 +235,34 @@ def calculate_room_bill_distribution(
             )
 
         # 2단계: 비례 배분으로 각 학생의 청구 금액 계산
-        for item in student_calculations:
+        total_distributed = 0  # 배분된 총 금액
+
+        for i, item in enumerate(student_calculations):
             student_no = item["student_no"]
             days_stayed = item["days_stayed"]
-            student_amount = item["student_amount"]
 
             if total_room_days > 0:
+                # 비례 배분 계산 (소수점 버림)
                 student_amount = int(total_bill_amount * days_stayed / total_room_days)
             else:
                 student_amount = 0
 
             # 결과 업데이트
             item["student_amount"] = student_amount
+            total_distributed += student_amount
+
+        # 3단계: 반올림으로 인한 차이를 마지막 학생에게 할당하여 총합을 정확히 맞춤
+        if total_distributed != total_bill_amount and len(student_calculations) > 0:
+            difference = total_bill_amount - total_distributed
+            # 마지막 학생에게 차이를 할당
+            student_calculations[-1]["student_amount"] += difference
+            logger.info(
+                f"관리비 배분 차이 조정: {difference}원을 마지막 학생({student_calculations[-1]['student_no']})에게 할당"
+            )
 
         return student_calculations
     except Exception as e:
-        print(f"❌ 호실 관리비 배분 계산 중 오류: {str(e)}")
+        logger.error(f"호실 관리비 배분 계산 중 오류: {str(e)}")
         return []
 
 
@@ -263,7 +280,7 @@ def get_student_info_use_room_id(room_id: str) -> dict:
         )
         return response.data
     except Exception as e:
-        print(f"❌ Error getting student info: {str(e)}")
+        logger.error(f"Error getting student info: {str(e)}")
         return []
 
 
@@ -344,12 +361,12 @@ def save_image_to_s3(
             Body=buf.getvalue(),
             ContentType=content_type,
         )
-        print(
-            f"🖼️ Resized image uploaded to s3://{bucket}/{key} ({original_size} -> {image.size})"
+        logger.info(
+            f"Resized image uploaded to s3://{bucket}/{key} ({original_size} -> {image.size})"
         )
         return True
     except Exception as e:
-        print(f"⚠️ Failed to upload resized image: {str(e)}")
+        logger.warning(f"Failed to upload resized image: {str(e)}")
         raise e
 
 
@@ -403,7 +420,7 @@ def parse_bill_amount_from_ocr_data(json_data, bill_type: str):
         rec_boxes = json_data.get("rec_boxes", [])
 
         if len(rec_texts) != len(rec_boxes):
-            print("⚠️ rec_texts와 rec_boxes 길이가 다름")
+            logger.warning("rec_texts와 rec_boxes 길이가 다름")
             raise Exception("rec_texts와 rec_boxes 길이가 다름")
 
         # 금액 패턴 정규식 (쉼표가 있는 숫자)
@@ -504,6 +521,8 @@ def save_ocr_result(
 ) -> bool:
     """
     OCR 결과를 Supabase core.bill 테이블에 upsert로 저장합니다.
+    calendar 테이블에서 해당 년, 월, 관리비 타입에 맞는 납부 마감일을 찾아 저장합니다.
+    만약 해당하는 calendar 레코드가 없다면 저장하지 않습니다.
 
     Args:
         year: 연도
@@ -515,14 +534,41 @@ def save_ocr_result(
 
     Returns:
         bool: 저장 성공 여부
+
+    Raises:
+        Exception: calendar 레코드를 찾을 수 없거나 저장 실패 시
     """
     try:
-
-        # 마감일 생성 (해당 월의 마지막 날)
         bill_year = int(year)
         bill_month = int(month)
-        end_date = date(
+
+        # 해당 월의 시작일과 마지막일 계산
+        month_start = date(bill_year, bill_month, 1)
+        month_end = date(
             bill_year, bill_month, calendar.monthrange(bill_year, bill_month)[1]
+        )
+
+        # calendar 테이블에서 해당 년, 월, 관리비 타입에 맞는 레코드 조회
+        calendar_result = (
+            supabase_client.postgrest.schema("core")
+            .from_("calendar")
+            .select("id, date, payment_type")
+            .eq("payment_type", bill_type)
+            .gte("date", str(month_start))
+            .lte("date", str(month_end))
+            .execute()
+        )
+
+        # calendar 레코드가 없으면 저장하지 않음
+        if not calendar_result.data or len(calendar_result.data) == 0:
+            raise Exception(
+                f"해당 년({year}), 월({month}), 관리비 타입({bill_type})에 맞는 납부 마감일이 calendar 테이블에 없습니다."
+            )
+
+        # 첫 번째 매칭되는 calendar 레코드의 id 사용
+        calendar_id = calendar_result.data[0]["id"]
+        logger.info(
+            f"Calendar 레코드 찾음 - ID: {calendar_id}, 날짜: {calendar_result.data[0]['date']}, 타입: {bill_type}"
         )
 
         # upsert용 데이터 준비
@@ -533,7 +579,7 @@ def save_ocr_result(
             student_amount = calc["student_amount"]
 
             bill_record = {
-                "end_date": str(end_date),
+                "calendar_id": calendar_id,
                 "type": bill_type,
                 "student_no": student_no,
                 "bank_info": bank_info,  # JSON 형태로 저장
@@ -552,9 +598,13 @@ def save_ocr_result(
             .execute()
         )
 
+        logger.info(
+            f"OCR 결과 저장 완료 - {len(upsert_data)}건의 관리비 레코드가 저장되었습니다."
+        )
         return True
 
     except Exception as e:
+        logger.error(f"OCR 결과 저장 실패: {str(e)}")
         raise e
 
 
@@ -693,4 +743,4 @@ if __name__ == "__main__":
         ]
     }
 
-    lambda_handler(water_event, None)
+    lambda_handler(electricity_event, None)

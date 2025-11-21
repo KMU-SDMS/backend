@@ -1,4 +1,6 @@
 # AL2023 기반 (glibc >= 2.27)
+# 빌드 명령어 DOCKER_BUILDKIT=0 docker build --platform linux/amd64 -t ocr-lambda .
+# docker desktop 에서 containerd 설정 off
 FROM public.ecr.aws/lambda/provided:al2023
 
 WORKDIR /var/task
@@ -42,7 +44,8 @@ RUN python3.11 -m pip install \
     boto3 \
     supabase \
     opencv-python-headless \
-    awslambdaric
+    awslambdaric \
+    logger
 
 # 모델/코드 복사 (모델은 /tmp에 저장)
 COPY ocr_models/PP-OCRv5_server_det_infer ocr_models/PP-OCRv5_server_det_infer
