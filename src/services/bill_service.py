@@ -289,12 +289,25 @@ def get_bill(
         response = (
             supabase.postgrest.schema("core")
             .from_("bill")
-            .select("*")
+            .select("*, calendar(date)")
             .eq("student_no", student_no)
             .execute()
         )
         data = response.data
         if data:
+            # calendar join 결과에서 첫 번째 row의 date를 가져와서 모든 데이터에 적용
+            end_date = None
+            if data and len(data) > 0:
+                first_item = data[0]
+                if first_item.get("calendar") and isinstance(
+                    first_item["calendar"], dict
+                ):
+                    end_date = first_item["calendar"].get("date")
+
+            # 모든 bill 데이터에 동일한 end_date 적용
+            for item in data:
+                item["end_date"] = end_date
+
             dto_list = BillListDTO.from_supabase_data(data)
             return dto_list.to_dict(), None
         else:
