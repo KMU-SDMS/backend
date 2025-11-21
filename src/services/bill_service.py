@@ -1,6 +1,8 @@
 import json
 import os
 import uuid
+import calendar
+from datetime import date
 from typing import Any, Dict, Tuple
 import boto3
 from botocore.exceptions import ClientError
@@ -89,10 +91,35 @@ def create_presigned_put_url(
         if allowed and content_type not in allowed:
             return None, f"contentType '{content_type}' not allowed"
 
-        # Validate bill_type
-        valid_types = {"water", "electricity", "gas"}
-        if bill_type not in valid_types:
-            return None, f"Invalid bill type. Must be one of: {', '.join(valid_types)}"
+        # 관리자가 요청할 때 납부 마감일 검증
+        if is_admin_group(user_info):
+            bill_year = int(year)
+            bill_month = int(month)
+
+            # 해당 월의 시작일과 마지막일 계산
+            month_start = date(bill_year, bill_month, 1)
+            month_end = date(
+                bill_year, bill_month, calendar.monthrange(bill_year, bill_month)[1]
+            )
+
+            # calendar 테이블에서 해당 년, 월, 관리비 타입에 맞는 레코드 조회
+            supabase = get_supabase_client("core")
+            calendar_result = (
+                supabase.postgrest.schema("core")
+                .from_("calendar")
+                .select("id, date, payment_type")
+                .eq("payment_type", bill_type)
+                .gte("date", str(month_start))
+                .lte("date", str(month_end))
+                .execute()
+            )
+
+            # calendar 레코드가 없으면 에러 반환
+            if not calendar_result.data or len(calendar_result.data) == 0:
+                return (
+                    None,
+                    "관리비 이미지를 업로드하기전에 캘린더의 납부 마감일을 기재해주세요",
+                )
 
         # Create S3 key with roomId and type: bills/{roomId}/{type}
         key = _get_key_prefix_to_upload(access_token, year, month, room_id, bill_type)

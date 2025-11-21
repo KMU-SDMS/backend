@@ -4,6 +4,7 @@ import re
 
 from src.services import bill_service
 from src.utils import responses
+from src.dto.bill_dto import BillPresignRequestDTO
 from src.utils.cognito_auth import (
     is_admin_group,
     is_common_user_group,
@@ -38,33 +39,24 @@ def presign(event, context):
             return responses.create_error_response("Unauthorized.", 401)
 
         body = json.loads(event.get("body", "{}"))
-        content_type = body.get("contentType", "application/octet-stream")
-        file_ext = body.get("ext")
-        room_id = body.get("roomId")
-        bill_type = body.get("type")
-        year = body.get("year")
-        month = body.get("month")
         access_token = event.get("access_token") or ""
 
-        # Validate required fields
-        if not room_id:
-            return responses.create_error_response("roomId is required.", 400)
-        if not bill_type:
-            return responses.create_error_response("type is required.", 400)
-        if not year:
-            return responses.create_error_response("year is required.", 400)
-        if not month:
-            return responses.create_error_response("month is required.", 400)
         if not access_token:
             return responses.create_error_response("access_token is required.", 400)
 
+        # DTO를 사용하여 요청 데이터 검증
+        try:
+            request_dto = BillPresignRequestDTO.from_dict(body)
+        except ValueError as e:
+            return responses.create_error_response(str(e), 400)
+
         data, err = bill_service.create_presigned_put_url(
-            content_type,
-            file_ext,
-            room_id,
-            bill_type,
-            year,
-            month,
+            request_dto.contentType,
+            request_dto.ext,
+            request_dto.roomId,
+            request_dto.type,
+            request_dto.year,
+            request_dto.month,
             event.get("user_info"),
             access_token,
         )

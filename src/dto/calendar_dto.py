@@ -64,6 +64,15 @@ class CalendarCreateRequestDTO(BaseDTO):
         if not re.match(date_pattern, self.date):
             return False, "Date must be in YYYY-MM-DD format."
 
+        # paymentType 검증 (제공된 경우에만)
+        if self.paymentType is not None:
+            valid_payment_types = {"water", "electricity", "gas"}
+            if self.paymentType not in valid_payment_types:
+                return (
+                    False,
+                    f"paymentType must be one of: {', '.join((valid_payment_types))}",
+                )
+
         return True, None
 
 
@@ -88,5 +97,14 @@ class CalendarUpdateRequestDTO(BaseDTO):
             date_pattern = r"^\d{4}-\d{2}-\d{2}$"
             if not re.match(date_pattern, self.date):
                 return False, "Date must be in YYYY-MM-DD format."
+
+        # paymentType 검증 (제공된 경우에만)
+        if self.paymentType is not None:
+            valid_payment_types = {"water", "electricity", "gas"}
+            if self.paymentType not in valid_payment_types:
+                return (
+                    False,
+                    f"paymentType must be one of: {', '.join((valid_payment_types))}",
+                )
 
         return True, None
