@@ -832,7 +832,7 @@ paths:
               $ref: "#/components/schemas/CalendarUpdateRequest"
             example:
               id: 1
-              paymentType: "cash"
+              paymentType: "water"
       responses:
         "200":
           description: 캘린더 일정이 성공적으로 수정되었습니다.
@@ -1143,7 +1143,7 @@ paths:
   /api/bill/presign:
     post:
       summary: 관리비 고지서 업로드 URL 발급
-      description: S3에 관리비 고지서 이미지를 업로드하기 위한 임시 presigned URL을 발급합니다. 발급된 URL은 5분간 유효합니다. 관리자가 요청할시 관리비 고지서 업로드 URL이 발급됩니다. 학생이 요청할시 관리비 납부 완료 업로드 URL이 발급됩니다.
+      description: S3에 관리비 고지서 이미지를 업로드하기 위한 임시 presigned URL을 발급합니다. 발급된 URL은 5분간 유효합니다. 관리자가 요청할시 관리비 고지서 업로드 URL이 발급됩니다. 학생이 요청할시 관리비 납부 완료 업로드 URL이 발급됩니다. 관리자가 관리비 납부 이미지 업로드 전 캘린더에 해당 년월의 납부 마감일정을 등록하여야합니다.
       tags:
         - Bills
       requestBody:
@@ -1167,7 +1167,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/BillPresignResponse"
         "400":
-          description: 잘못된 요청 (필수 필드 누락 또는 유효하지 않은 값)
+          description: 잘못된 요청 (필수 필드 누락 또는 유효하지 않은 값), 관리자가 관리비 납부 이미지 업로드 전 캘린더에 해당 년월의 납부 마감일정을 등록하여야합니다.
           content:
             application/json:
               schema:
@@ -2384,8 +2384,9 @@ components:
           example: "night"
         paymentType:
           type: string
-          description: 결제 타입
-          example: "card"
+          nullable: true
+          description: 결제 타입 (water, electricity, gas 중 하나)
+          example: "water"
 
     CalendarList:
       type: object
@@ -2401,8 +2402,6 @@ components:
       description: 캘린더 일정 생성 요청
       required:
         - date
-        - rollCallType
-        - paymentType
       properties:
         date:
           type: string
@@ -2411,12 +2410,15 @@ components:
           example: "2025-09-19"
         rollCallType:
           type: string
-          description: 점호 타입
+          nullable: true
+          description: 점호 타입 (선택사항)
           example: "night"
         paymentType:
           type: string
-          description: 결제 타입
-          example: "card"
+          nullable: true
+          description: 결제 타입 (선택사항, water, electricity, gas 중 하나)
+          enum: [water, electricity, gas]
+          example: "water"
 
     CalendarUpdateRequest:
       type: object
@@ -2435,12 +2437,15 @@ components:
           example: "2025-09-19"
         rollCallType:
           type: string
+          nullable: true
           description: 점호 타입 (선택사항)
           example: "night"
         paymentType:
           type: string
-          description: 결제 타입 (선택사항)
-          example: "cash"
+          nullable: true
+          description: 결제 타입 (선택사항, water, electricity, gas 중 하나)
+          enum: [water, electricity, gas]
+          example: "water"
 
     Error:
       type: object
