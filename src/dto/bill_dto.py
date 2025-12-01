@@ -27,9 +27,7 @@ class BillDTO(BaseDTO):
             studentNo=data.get("student_no", ""),
             type=data.get("type", ""),
             amount=data.get("amount"),
-            endDate=(
-                str(data.get("end_date")) if data.get("end_date") is not None else None
-            ),
+            endDate=data.get("calendar").get("date"),
             bankInfo=data.get("bank_info"),
             is_paid=data.get("is_paid"),
         )

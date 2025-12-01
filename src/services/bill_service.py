@@ -289,25 +289,12 @@ def get_bill(
         response = (
             supabase.postgrest.schema("core")
             .from_("bill")
-            .select("*, calendar(date)")
+            .select("*, calendar!inner(id,date)")
             .eq("student_no", student_no)
             .execute()
         )
         data = response.data
         if data:
-            # calendar join 결과에서 첫 번째 row의 date를 가져와서 모든 데이터에 적용
-            end_date = None
-            if data and len(data) > 0:
-                first_item = data[0]
-                if first_item.get("calendar") and isinstance(
-                    first_item["calendar"], dict
-                ):
-                    end_date = first_item["calendar"].get("date")
-
-            # 모든 bill 데이터에 동일한 end_date 적용
-            for item in data:
-                item["end_date"] = end_date
-
             dto_list = BillListDTO.from_supabase_data(data)
             return dto_list.to_dict(), None
         else:
@@ -324,6 +311,7 @@ def update_bill(
 ) -> Tuple[Dict[str, Any] | None, str | None]:
     """
     Supabase에서 studentNo로 단일 학생의 관리비를 수정합니다.
+    end_date가 포함된 경우 calendar 테이블도 함께 업데이트합니다.
     """
     try:
         if student_no is None:
@@ -332,18 +320,55 @@ def update_bill(
 
         supabase = get_supabase_client("core")
 
-        response = (
+        # end_date가 포함된 경우 분리
+        end_date = bill_data.pop("end_date", None)
+
+        # 먼저 bill을 조회하여 calendar_id 가져오기
+        bill_query = (
             supabase.postgrest.schema("core")
             .from_("bill")
-            .update(bill_data)
+            .select("calendar_id")
             .eq("student_no", student_no)
             .eq("type", bill_type)
+            .limit(1)
             .execute()
         )
-        if response.data:
-            return True, None
-        else:
+
+        if not bill_query.data or len(bill_query.data) == 0:
             return False, "Not found"
+
+        calendar_id = bill_query.data[0].get("calendar_id")
+
+        # bill 업데이트
+        if bill_data:  # 업데이트할 필드가 있는 경우에만
+            response = (
+                supabase.postgrest.schema("core")
+                .from_("bill")
+                .update(bill_data)
+                .eq("student_no", student_no)
+                .eq("type", bill_type)
+                .execute()
+            )
+
+            if not response.data:
+                return False, "Not found"
+
+        # calendar 테이블의 date를 업데이트 (end_date가 있는 경우)
+        if end_date is not None and calendar_id:
+            # calendar 테이블의 date를 업데이트 (update)
+            calendar_data = {"date": end_date}
+            calendar_response = (
+                supabase.postgrest.schema("core")
+                .from_("calendar")
+                .update(calendar_data)
+                .eq("id", calendar_id)
+                .execute()
+            )
+
+            if not calendar_response.data:
+                return False, "Failed to update calendar"
+
+        return True, None
     except Exception as e:
         return False, str(e)
 
@@ -351,14 +376,15 @@ def update_bill(
 def get_bills_from_end_date(end_date: str) -> Tuple[Dict[str, Any] | None, str | None]:
     """
     Supabase에서 end_date로 관리비를 조회합니다.
+    calendar 테이블과 join하여 calendar.date가 end_date와 일치하는 bill을 조회합니다.
     """
     try:
         supabase = get_supabase_client("core")
         response = (
             supabase.postgrest.schema("core")
             .from_("bill")
-            .select("*")
-            .eq("end_date", end_date)
+            .select("*, calendar!inner(id, date)")
+            .eq("calendar.date", end_date)
             .execute()
         )
         data = response.data

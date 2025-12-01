@@ -279,13 +279,13 @@ def update_bill(event, context):
     except json.JSONDecodeError:
         return responses.create_error_response("Invalid JSON format.", 400)
     except Exception as e:
-        logger.error(f"❌ update bill failed: {e}")
-        return responses.create_error_response("Internal server error.", 500)
+        logger.error(f"❌ update bill handler failed: {e}")
+        return responses.create_error_response(f"update bill handler error: {e}.", 500)
 
 
 def get_bills_from_end_date(event, context):
     """
-    GET /bills/endDate?endDate={endDate}
+    GET /bills?endDate={endDate}
 
     Query Parameters:
     - endDate: 종료 일자 (YYYY-MM-DD)
