@@ -17,16 +17,20 @@ logger = logging.getLogger(__name__)
 def get_all(event, context):
     """
     GET /calendar API 요청을 처리하는 핸들러
-    query parameter date(선택): YYYY-MM-DD 형식으로 특정 날짜 조회
+    query parameter:
+    - date(선택): YYYY-MM-DD 형식으로 특정 날짜 조회
+    - year, month(선택): 특정 연도-월의 모든 일정 조회 (year와 month는 함께 제공되어야 함)
     """
     logger.info("✅ Processing get_all calendar request")
 
     try:
-        # 쿼리 파라미터에서 date 추출
+        # 쿼리 파라미터 추출
         query_params = event.get("queryStringParameters") or {}
         date = query_params.get("date")
+        year_str = query_params.get("year")
+        month_str = query_params.get("month")
 
-        # 날짜 형식 검증 (제공된 경우에만)
+        # date 파라미터가 있으면 기존 로직 사용 (우선순위 1)
         if date:
             date_pattern = r"^\d{4}-\d{2}-\d{2}$"
             if not re.match(date_pattern, date):
@@ -34,8 +38,50 @@ def get_all(event, context):
                     "Date must be in YYYY-MM-DD format.", 400
                 )
 
-        # 서비스 호출
-        calendar_data, error = calendar_service.get_calendar(date=date)
+            # 서비스 호출 (date만 사용)
+            calendar_data, error = calendar_service.get_calendar(date=date)
+            if error:
+                return responses.create_error_response(error, 500)
+
+            # DTO를 사용하여 응답 데이터 변환
+            calendar_list_dto = CalendarListDTO.from_supabase_data(calendar_data)
+            return responses.create_success_response(calendar_list_dto.to_dict())
+
+        # year와 month 파라미터 처리 (우선순위 2)
+        year = None
+        month = None
+
+        if year_str or month_str:
+            # year와 month는 함께 제공되어야 함
+            if not year_str or not month_str:
+                return responses.create_error_response(
+                    "Both year and month must be provided together.", 400
+                )
+
+            # year 검증
+            try:
+                year = int(year_str)
+                if year <= 0:
+                    return responses.create_error_response(
+                        "Year must be a positive integer.", 400
+                    )
+            except (ValueError, TypeError):
+                return responses.create_error_response("Invalid year format.", 400)
+
+            # month 검증
+            try:
+                month = int(month_str)
+                if not (1 <= month <= 12):
+                    return responses.create_error_response(
+                        "Month must be between 1 and 12.", 400
+                    )
+            except (ValueError, TypeError):
+                return responses.create_error_response("Invalid month format.", 400)
+
+        # 서비스 호출 (year, month 또는 둘 다 None)
+        calendar_data, error = calendar_service.get_calendar(
+            date=None, year=year, month=month
+        )
 
         if error:
             return responses.create_error_response(error, 500)
