@@ -61,10 +61,17 @@ provider:
             - arn:aws:s3:::${file(envs/config.${self:provider.stage}.json):BILL_BUCKET_NAME}/*
         - Effect: Allow
           Action:
+            - ecr:GetAuthorizationToken
+          Resource: "*"
+        - Effect: Allow
+          Action:
             - ecr:GetDownloadUrlForLayer
             - ecr:BatchGetImage
             - ecr:BatchCheckLayerAvailability
-          Resource: "*"
+          Resource:
+            - arn:aws:ecr:${self:provider.region}:${aws:accountId}:repository/ocr-lambda-${self:provider.stage}
+            - arn:aws:ecr:${self:provider.region}:${aws:accountId}:repository/ocr-lambda-dev
+            - arn:aws:ecr:${self:provider.region}:${aws:accountId}:repository/ocr-lambda-prod
   httpApi:
     cors:
       allowedOrigins: ${file(envs/config.${self:provider.stage}.json):CORS_ORIGINS}
