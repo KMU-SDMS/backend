@@ -1,21 +1,29 @@
 import logging
+import calendar
+from typing import Optional
 from src.utils.supabase_client import get_supabase_client
 
 # 로거 설정
 logger = logging.getLogger(__name__)
 
 
-def get_calendar(date: str = None):
+def get_calendar(
+    date: Optional[str] = None, year: Optional[int] = None, month: Optional[int] = None
+):
     """
     Supabase 클라이언트를 사용하여 캘린더 데이터를 가져옵니다.
-    date가 제공되면 특정 날짜의 데이터만 조회합니다.
+    - date가 제공되면 특정 날짜의 데이터만 조회합니다.
+    - year와 month가 제공되면 해당 월의 모든 데이터를 조회합니다.
+    - 모두 제공되지 않으면 전체 데이터를 조회합니다.
     """
     try:
         supabase = get_supabase_client("core")
         if not supabase:
             return None, "Supabase client could not be initialized."
 
-        logger.info(f"Supabase 'calendar' 테이블 조회 시작 - date: {date}")
+        logger.info(
+            f"Supabase 'calendar' 테이블 조회 시작 - date: {date}, year: {year}, month: {month}"
+        )
 
         # 기본 쿼리 구성
         query = (
@@ -24,9 +32,20 @@ def get_calendar(date: str = None):
             .select("id, date, roll_call_type, payment_type, created_at")
         )
 
-        # 특정 날짜 필터링 (선택적)
+        # 특정 날짜 필터링 (우선순위 1)
         if date:
             query = query.eq("date", date)
+            logger.info(f"특정 날짜 필터 적용: {date}")
+        # 월별 필터링 (우선순위 2)
+        elif year is not None and month is not None:
+            # 해당 월의 시작일과 종료일 계산
+            start_date = f"{year:04d}-{month:02d}-01"
+            # 해당 월의 마지막 날짜 계산
+            _, last_day = calendar.monthrange(year, month)
+            end_date = f"{year:04d}-{month:02d}-{last_day:02d}"
+
+            query = query.gte("date", start_date).lte("date", end_date)
+            logger.info(f"월별 필터 적용: {start_date} ~ {end_date}")
 
         # 날짜 순으로 정렬
         response = query.order("date").execute()
