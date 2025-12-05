@@ -189,17 +189,17 @@ functions:
           method: any
           path: /api/{proxy+}
 
-  calcBillFromOcr:
-    name: ${self:provider.stage}-calc-Bill-From-Ocr
-    image:
-      uri: ${file(envs/config.${self:provider.stage}.json):BILL_OCR_IMAGE_URI}
-    memorySize: 3008
-    timeout: 300
-    events:
-      - s3:
-          bucket: ${self:provider.environment.BILL_BUCKET_NAME}
-          event: s3:ObjectCreated:*
-          existing: true
-          rules:
-            - prefix: bills/
+  # calcBillFromOcr:
+  #   name: ${self:provider.stage}-calc-Bill-From-Ocr
+  #   image:
+  #     uri: ${file(envs/config.${self:provider.stage}.json):BILL_OCR_IMAGE_URI}
+  #   memorySize: 3008
+  #   timeout: 300
+  #   events:
+  #     - s3:
+  #         bucket: ${self:provider.environment.BILL_BUCKET_NAME}
+  #         event: s3:ObjectCreated:*
+  #         existing: true
+  #         rules:
+  #           - prefix: bills/
       
